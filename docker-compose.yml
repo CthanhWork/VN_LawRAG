@@ -1,0 +1,63 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laws
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  chroma:
+    image: chromadb/chroma:latest
+    environment:
+      - IS_PERSISTENT=TRUE
+    volumes:
+      - chroma:/chroma
+    ports:
+      - "8008:8000"  # optional
+
+  rag-service:
+    build: ./services/rag-service
+    env_file:
+      - .env
+    volumes:
+      - chroma:/data/chroma
+    ports:
+      - "5001:5001"
+    depends_on:
+      - chroma
+      - redis
+      - mysql
+
+  law-service:
+    build: ./services/law-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/laws?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=app
+      - SPRING_DATASOURCE_PASSWORD=app
+      - RAG_SERVICE_URL=http://rag-service:5001
+    depends_on:
+      - mysql
+      - rag-service
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/readiness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  dbdata:
+  chroma:
