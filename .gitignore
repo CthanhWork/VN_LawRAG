@@ -13,3 +13,7 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Project docs (ignore entire docs folder)
+docs/
+
