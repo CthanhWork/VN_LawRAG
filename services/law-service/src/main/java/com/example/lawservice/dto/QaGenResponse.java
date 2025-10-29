@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -18,7 +18,7 @@ public class QaGenResponse {
     private List<Citation> citations;
 
     @Schema(description = "Timestamp for which this answer is effective")
-    private LocalDateTime effectiveAt;
+    private LocalDate effectiveAt;
 
     @Schema(description = "IDs of nodes used in answer generation")
     private List<Long> usedNodes;

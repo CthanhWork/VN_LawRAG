@@ -32,6 +32,9 @@ File điều phối: `docker-compose.yml` ở thư mục gốc.
    # RAG sẵn sàng?
    Invoke-RestMethod "http://localhost:5001/ready"
 
+   # Prometheus metrics từ rag-service
+   Invoke-RestMethod "http://localhost:5001/metrics"
+
    # law-service readiness (Spring Actuator)
    Invoke-RestMethod "http://localhost:8080/actuator/health/readiness"
 
@@ -98,13 +101,7 @@ Ghi chú PowerShell: `curl` trong PowerShell là alias của `Invoke-WebRequest`
 ## Nhúng dữ liệu vào Chroma (tăng chất lượng trả lời)
 Mặc định Chroma có thể trống, câu trả lời sẽ ít ngữ cảnh. Hãy chạy script nhúng để tạo embeddings từ DB và đưa vào Chroma.
 
-1) Cài driver MySQL trong container RAG
-
-```powershell
-docker compose exec rag-service pip install pymysql
-```
-
-2) Chạy script nhúng
+1) Chạy script nhúng
 
 ```powershell
 docker compose exec rag-service python /app/embed_laws.py

@@ -1,3 +1,5 @@
 flask
 sentence-transformers
 chromadb
+pymysql
+prometheus-client

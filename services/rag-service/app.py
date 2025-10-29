@@ -1,6 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import os
-from datetime import date
+import time
+from datetime import date, datetime
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 # Lazy-initialized globals
 emb = None
@@ -12,6 +14,12 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "keepitreal/vietnamese-sbert")
 CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma")
 
 app = Flask(__name__)
+
+
+# Prometheus metrics
+REQ_COUNT = Counter('rag_requests_total', 'Total RAG requests', ['endpoint'])
+REQ_LAT = Histogram('rag_request_latency_seconds', 'Request latency in seconds', ['endpoint'])
+RET_DOCS = Histogram('rag_retrieve_results', 'Number of retrieved documents', buckets=[0, 1, 3, 5, 8, 13, 21])
 
 
 def ensure_inited():
@@ -38,6 +46,32 @@ def ensure_inited():
         return False
 
 
+def _parse_date(value: str):
+    """Parse various ISO-like date/datetime strings into a date object.
+    Accepts:
+      - YYYY-MM-DD
+      - YYYY-MM-DDTHH:MM[:SS][.mmm][Z|±HH:MM]
+      - YYYY-MM-DD HH:MM[:SS]
+    Returns None if unparsable.
+    """
+    if not value:
+        return None
+    s = str(value).strip()
+    try:
+        # Common case: date only
+        if 'T' in s:
+            s = s.split('T', 1)[0]
+        elif ' ' in s and len(s) > 10:
+            # Handle "YYYY-MM-DD HH:MM:SS"
+            s = s.split(' ', 1)[0]
+        return date.fromisoformat(s)
+    except Exception:
+        try:
+            return datetime.fromisoformat(str(value)).date()
+        except Exception:
+            return None
+
+
 def retrieve(question: str, effective_at: str, k: int = 8):
     # If not initialized, return a placeholder context explaining the issue
     if not ensure_inited():
@@ -54,12 +88,15 @@ def retrieve(question: str, effective_at: str, k: int = 8):
     docs = res.get("documents", [[]])[0]
     metas = res.get("metadatas", [[]])[0]
 
-    # Filter by effective_at if metadata present
+    # Filter by effective_at if metadata present (compare as proper dates)
+    eff_date = _parse_date(effective_at) or date.today()
     out = []
     for text, m in zip(docs, metas):
-        s = (m.get("effective_start") or "1900-01-01")
-        e = (m.get("effective_end") or "9999-12-31")
-        if s <= effective_at <= e:
+        s_raw = m.get("effective_start") or "1900-01-01"
+        e_raw = m.get("effective_end") or "9999-12-31"
+        s = _parse_date(s_raw) or date(1900, 1, 1)
+        e = _parse_date(e_raw) or date(9999, 12, 31)
+        if s <= eff_date <= e:
             out.append({
                 "law_code": m.get("law_code"),
                 "node_path": m.get("node_path") or "",
@@ -74,6 +111,7 @@ def retrieve(question: str, effective_at: str, k: int = 8):
                 "node_id": m.get("node_id"),
                 "content": text,
             })
+    RET_DOCS.observe(len(out))
     return out
 
 
@@ -103,51 +141,70 @@ def ready():
 
 @app.post("/qa")
 def qa():
-    body = request.get_json(force=True)
-    q = (body.get("question") or "").strip()
-    if not q:
-        return jsonify({"error": "Thiếu 'question'"}), 400
-    t = body.get("effective_at") or date.today().isoformat()
-    k = int(body.get("options", {}).get("k", 8))
+    start = time.time()
+    REQ_COUNT.labels(endpoint="qa").inc()
+    try:
+        body = request.get_json(force=True)
+        q = (body.get("question") or "").strip()
+        if not q:
+            return jsonify({"error": "Thiếu 'question'"}), 400
+        t_raw = body.get("effective_at")
+        t_date = _parse_date(t_raw) or date.today()
+        t = t_date.isoformat()
+        k = int(body.get("options", {}).get("k", 8))
 
-    if not ensure_inited():
-        return jsonify({"error": f"RAG chưa sẵn sàng: {init_error}"}), 503
+        if not ensure_inited():
+            return jsonify({"error": f"RAG chưa sẵn sàng: {init_error}"}), 503
 
-    ctx = retrieve(q, t, k=k)
-    answer = synthesize_answer(q, t, ctx)
-    return jsonify({"answer": answer, "effective_at": t, "context": ctx})
+        ctx = retrieve(q, t, k=k)
+        answer = synthesize_answer(q, t, ctx)
+        return jsonify({"answer": answer, "effective_at": t, "context": ctx})
+    finally:
+        REQ_LAT.labels(endpoint="qa").observe(time.time() - start)
 
 
 @app.post("/gen")
 def gen():
-    body = request.get_json(force=True)
-    q = (body.get("question") or "").strip()
-    if not q:
-        return jsonify({"error": "Thiếu 'question'"}), 400
-    t = body.get("effective_at") or date.today().isoformat()
-    k = int(body.get("k") or 8)
-    # max_tokens, temperature are accepted but unused in this demo
+    start = time.time()
+    REQ_COUNT.labels(endpoint="gen").inc()
+    try:
+        body = request.get_json(force=True)
+        q = (body.get("question") or "").strip()
+        if not q:
+            return jsonify({"error": "Thiếu 'question'"}), 400
+        t_raw = body.get("effective_at")
+        t_date = _parse_date(t_raw) or date.today()
+        t = t_date.isoformat()
+        k = int(body.get("k") or 8)
+        # max_tokens, temperature are accepted but unused in this demo
 
-    if not ensure_inited():
-        return jsonify({"error": f"RAG chưa sẵn sàng: {init_error}"}), 503
+        if not ensure_inited():
+            return jsonify({"error": f"RAG chưa sẵn sàng: {init_error}"}), 503
 
-    ctx = retrieve(q, t, k=k)
-    answer = synthesize_answer(q, t, ctx)
-    citations = []
-    used_nodes = []
-    for c in ctx[:5]:
-        citations.append({
-            "law_code": c.get("law_code"),
-            "node_path": c.get("node_path"),
-            "node_id": c.get("node_id"),
+        ctx = retrieve(q, t, k=k)
+        answer = synthesize_answer(q, t, ctx)
+        citations = []
+        used_nodes = []
+        for c in ctx[:5]:
+            citations.append({
+                "law_code": c.get("law_code"),
+                "node_path": c.get("node_path"),
+                "node_id": c.get("node_id"),
+            })
+            if c.get("node_id") is not None:
+                used_nodes.append(c.get("node_id"))
+        return jsonify({
+            "answer": answer,
+            "citations": citations,
+            "used_nodes": used_nodes,
         })
-        if c.get("node_id") is not None:
-            used_nodes.append(c.get("node_id"))
-    return jsonify({
-        "answer": answer,
-        "citations": citations,
-        "used_nodes": used_nodes,
-    })
+    finally:
+        REQ_LAT.labels(endpoint="gen").observe(time.time() - start)
+
+
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 
 @app.post("/admin/reindex")

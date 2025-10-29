@@ -14,7 +14,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api")
@@ -32,10 +32,10 @@ public class NodeController {
     @Operation(summary = "Get nodes for a specific law")
     public PageResponse<LawNode> getByLaw(
         @PathVariable Long lawId,
-        @Parameter(description = "Filter nodes effective at this date-time")
+        @Parameter(description = "Filter nodes effective at this date (YYYY-MM-DD)")
         @RequestParam(required = false) 
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) 
-        LocalDateTime effectiveAt,
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) 
+        LocalDate effectiveAt,
         Pageable pageable
     ) {
         Page<LawNode> nodes;
@@ -59,10 +59,10 @@ public class NodeController {
     @Operation(summary = "Search nodes by content")
     public PageResponse<LawNode> searchNodes(
         @RequestParam String keyword,
-        @Parameter(description = "Filter nodes effective at this date-time")
+        @Parameter(description = "Filter nodes effective at this date (YYYY-MM-DD)")
         @RequestParam(required = false) 
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) 
-        LocalDateTime effectiveAt,
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) 
+        LocalDate effectiveAt,
         Pageable pageable
     ) {
         Page<LawNode> nodes;

@@ -1,10 +1,12 @@
 package com.example.lawservice.controller;
 
 import com.example.lawservice.dto.TocDTO;
+import com.example.lawservice.dto.SuggestionDTO;
 import com.example.lawservice.model.Law;
 import com.example.lawservice.model.LawNode;
 import com.example.lawservice.repository.LawNodeRepository;
 import com.example.lawservice.repository.LawRepository;
+import com.example.lawservice.service.SuggestionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +26,12 @@ import java.util.stream.Collectors;
 public class LawController {
     private final LawRepository lawRepository;
     private final LawNodeRepository nodeRepository;
+    private final SuggestionService suggestionService;
 
-    public LawController(LawRepository lawRepository, LawNodeRepository nodeRepository) {
+    public LawController(LawRepository lawRepository, LawNodeRepository nodeRepository, SuggestionService suggestionService) {
         this.lawRepository = lawRepository;
         this.nodeRepository = nodeRepository;
+        this.suggestionService = suggestionService;
     }
 
     @GetMapping
@@ -51,6 +55,14 @@ public class LawController {
         return lawRepository.findByCodeContainingIgnoreCaseOrTitleContainingIgnoreCase(
                 keyword, keyword, PageRequest.of(page, size));
 
+    }
+
+    @GetMapping("/suggest")
+    @Operation(summary = "Suggest laws by keyword (autocomplete)")
+    public java.util.List<SuggestionDTO> suggest(
+            @RequestParam("keyword") String keyword,
+            @RequestParam(value = "limit", defaultValue = "10") int limit) {
+        return suggestionService.getSuggestions(keyword, limit);
     }
 
     @GetMapping("/{id}/toc")

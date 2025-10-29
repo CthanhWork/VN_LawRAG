@@ -3,7 +3,7 @@ package com.example.lawservice.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.Builder;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -18,7 +18,7 @@ public class QaResponse {
     private List<LegalContext> context;
     
     @Schema(description = "The timestamp for which this answer is effective")
-    private LocalDateTime effectiveAt;
+    private LocalDate effectiveAt;
     
     @Data
     @Builder
@@ -36,9 +36,9 @@ public class QaResponse {
         private Long nodeId;
         
         @Schema(description = "When this law/node becomes effective")
-        private LocalDateTime effectiveStart;
+        private LocalDate effectiveStart;
         
         @Schema(description = "When this law/node stops being effective")
-        private LocalDateTime effectiveEnd;
+        private LocalDate effectiveEnd;
     }
 }

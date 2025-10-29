@@ -15,7 +15,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import com.example.lawservice.dto.QaGenResponse;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -31,32 +30,28 @@ public class RagClient {
     private final WebClient webClient;
     private final LawNodeRepository lawNodeRepository;
 
-    private static LocalDateTime toDateTime(LocalDate date) {
-        return date != null ? date.atStartOfDay() : null;
-    }
-
     @Autowired
     public RagClient(LawNodeRepository lawNodeRepository, WebClient webClient) {
         this.webClient = webClient; // Configured in WebConfig with baseUrl
         this.lawNodeRepository = lawNodeRepository;
     }
 
-    public QaResponse ask(String question, LocalDateTime effectiveAt) {
+    public QaResponse ask(String question, LocalDate effectiveAt) {
         return ask(question, effectiveAt, false);
     }
 
-    public QaResponse ask(String question, LocalDateTime effectiveAt, boolean useReranker) {
+    public QaResponse ask(String question, LocalDate effectiveAt, boolean useReranker) {
         if (question == null || question.isBlank()) {
             throw new IllegalArgumentException("question must not be blank");
         }
 
-        LocalDateTime effectiveTime = Optional.ofNullable(effectiveAt).orElse(LocalDateTime.now());
+        LocalDate effectiveDate = Optional.ofNullable(effectiveAt).orElse(LocalDate.now());
 
         try {
             RagServiceResponse response = webClient.post()
                 .uri(QA_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(new RagServiceRequest(question, effectiveTime.toString(), useReranker))
+                .bodyValue(new RagServiceRequest(question, effectiveDate.toString(), useReranker))
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse ->
                     clientResponse.bodyToMono(String.class).map(body ->
@@ -86,8 +81,8 @@ public class RagClient {
                         .lawCode(ctx.lawCode)
                         .nodePath(ctx.nodePath)
                         .nodeId(nodeId)
-                        .effectiveStart(node != null ? toDateTime(node.getEffectiveStart()) : null)
-                        .effectiveEnd(node != null ? toDateTime(node.getEffectiveEnd()) : null)
+                        .effectiveStart(node != null ? node.getEffectiveStart() : null)
+                        .effectiveEnd(node != null ? node.getEffectiveEnd() : null)
                         .build();
                 })
                 .collect(Collectors.toList());
@@ -95,7 +90,7 @@ public class RagClient {
             return QaResponse.builder()
                 .answer(response.answer)
                 .context(context)
-                .effectiveAt(effectiveTime)
+                .effectiveAt(effectiveDate)
                 .build();
         } catch (WebClientResponseException e) {
             log.error("RAG service HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
@@ -106,16 +101,16 @@ public class RagClient {
         }
     }
 
-    public QaGenResponse generate(String question, LocalDateTime effectiveAt, Integer k, Integer maxTokens, Double temperature) {
+    public QaGenResponse generate(String question, LocalDate effectiveAt, Integer k, Integer maxTokens, Double temperature) {
         if (question == null || question.isBlank()) {
             throw new IllegalArgumentException("question must not be blank");
         }
-        LocalDateTime effectiveTime = Optional.ofNullable(effectiveAt).orElse(LocalDateTime.now());
+        LocalDate effectiveDate = Optional.ofNullable(effectiveAt).orElse(LocalDate.now());
         try {
             RagGenResponse resp = webClient.post()
                 .uri(GEN_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(new RagGenRequest(question, effectiveTime.toString(), k, maxTokens, temperature))
+                .bodyValue(new RagGenRequest(question, effectiveDate.toString(), k, maxTokens, temperature))
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse ->
                     clientResponse.bodyToMono(String.class).map(body ->
@@ -145,7 +140,7 @@ public class RagClient {
             return com.example.lawservice.dto.QaGenResponse.builder()
                 .answer(resp.answer)
                 .citations(citations)
-                .effectiveAt(effectiveTime)
+                .effectiveAt(effectiveDate)
                 .usedNodes(usedNodes)
                 .build();
         } catch (WebClientResponseException e) {

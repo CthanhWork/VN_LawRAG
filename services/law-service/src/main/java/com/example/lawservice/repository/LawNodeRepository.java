@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public interface LawNodeRepository extends JpaRepository<LawNode, Long> {
     Page<LawNode> findByLaw_Id(Long lawId, Pageable pageable);
@@ -24,7 +24,7 @@ public interface LawNodeRepository extends JpaRepository<LawNode, Long> {
     @Query("SELECT n FROM LawNode n WHERE " +
            "(n.effectiveStart IS NULL OR n.effectiveStart <= :effectiveAt) AND " +
            "(n.effectiveEnd IS NULL OR n.effectiveEnd >= :effectiveAt)")
-    Page<LawNode> findAllEffectiveAt(@Param("effectiveAt") LocalDateTime effectiveAt, Pageable pageable);
+    Page<LawNode> findAllEffectiveAt(@Param("effectiveAt") LocalDate effectiveAt, Pageable pageable);
     
     @Query("SELECT n FROM LawNode n WHERE " +
            "n.law.id = :lawId AND " +
@@ -32,7 +32,7 @@ public interface LawNodeRepository extends JpaRepository<LawNode, Long> {
            "(n.effectiveEnd IS NULL OR n.effectiveEnd >= :effectiveAt)")
     Page<LawNode> findByLaw_IdAndEffectiveAt(
         @Param("lawId") Long lawId, 
-        @Param("effectiveAt") LocalDateTime effectiveAt, 
+        @Param("effectiveAt") LocalDate effectiveAt, 
         Pageable pageable
     );
     
@@ -42,7 +42,7 @@ public interface LawNodeRepository extends JpaRepository<LawNode, Long> {
            "(n.effectiveEnd IS NULL OR n.effectiveEnd >= :effectiveAt)")
     Page<LawNode> findByContentTextContainingIgnoreCaseAndEffectiveAt(
         @Param("keyword") String keyword, 
-        @Param("effectiveAt") LocalDateTime effectiveAt, 
+        @Param("effectiveAt") LocalDate effectiveAt, 
         Pageable pageable
     );
 

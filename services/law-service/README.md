@@ -5,7 +5,7 @@ Minimal Spring Boot service that exposes APIs to read laws and law nodes from My
 Requirements
 - JDK 17
 - Maven
-- A running MySQL instance with the `laws` database (see project root `sample_hng.sql`)
+- A running MySQL instance with the `laws` database (Flyway migrations will create schema and seed minimal data)
 
 Quick start
 
@@ -24,11 +24,12 @@ API Highlights
 - GET /api/laws
 - GET /api/laws/{id}
 - GET /api/laws/search?keyword=...
+- GET /api/laws/suggest?keyword=...&limit=10
 - GET /api/laws/{lawId}/nodes
 - GET /api/nodes/{id}
 - GET /api/nodes/search?keyword=...
 - GET /api/nodes/search/fulltext?q=...  (requires MySQL FULLTEXT index)
-- POST /api/qa  (body: {"question":"..."}) forwards to rag-service
+- POST /api/qa  (body: {"question":"..."}, query: effectiveAt=YYYY-MM-DD) forwards to rag-service
 - POST /api/qa/gen  (body: {"question","effectiveAt","k","maxTokens","temperature"}) uses LLM generation with citations
 - POST /api/admin/reindex  (internal) triggers RAG re-embedding
 - Actuator: /actuator/health, /actuator/metrics, /actuator/prometheus

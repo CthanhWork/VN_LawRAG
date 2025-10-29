@@ -18,7 +18,7 @@ def fetch_chunks():
     try:
         with conn.cursor() as cur:
             cur.execute("""
-              SELECT ln.id, l.law_code,
+              SELECT ln.id, l.code AS law_code,
                      CONCAT_WS(' → ', NULLIF(ln2.ordinal_label,''), NULLIF(ln.ordinal_label,'')) AS node_path,
                      COALESCE(ln.content_text, ln.content_html) AS text,
                      COALESCE(DATE_FORMAT(ln.effective_start,'%Y-%m-%d'),'1900-01-01') AS effective_start,
@@ -28,7 +28,7 @@ def fetch_chunks():
               LEFT JOIN law_nodes ln2 ON ln2.id = ln.parent_id
               WHERE ln.level IN ('DIEU','KHOAN')
                 AND (COALESCE(ln.content_text,'') <> '' OR COALESCE(ln.content_html,'') <> '')
-              ORDER BY l.law_code, ln.sort_key
+              ORDER BY l.code, ln.sort_key
             """)
             return cur.fetchall()
     finally:

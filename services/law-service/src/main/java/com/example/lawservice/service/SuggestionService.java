@@ -15,10 +15,15 @@ public class SuggestionService {
 
     private final LawRepository lawRepository;
     private final LawNodeRepository nodeRepository;
-    private static final int MAX_SUGGESTIONS = 5;
+    private static final int DEFAULT_MAX_SUGGESTIONS = 5;
 
     public List<SuggestionDTO> getSuggestions(String keyword) {
-        return lawRepository.findSuggestions(keyword, MAX_SUGGESTIONS).stream()
+        return getSuggestions(keyword, DEFAULT_MAX_SUGGESTIONS);
+    }
+
+    public List<SuggestionDTO> getSuggestions(String keyword, int limit) {
+        int capped = Math.max(1, Math.min(limit, 50));
+        return lawRepository.findSuggestions(keyword, capped).stream()
             .map(law -> SuggestionDTO.builder()
                 .id(law.getId())
                 .type("LAW")

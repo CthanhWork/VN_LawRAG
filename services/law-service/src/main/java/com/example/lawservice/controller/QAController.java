@@ -12,7 +12,7 @@
     import org.springframework.http.MediaType;
     import org.springframework.web.bind.annotation.*;
 
-    import java.time.LocalDateTime;
+    import java.time.LocalDate;
 
     @RestController
     @RequestMapping("/api/qa")
@@ -30,10 +30,10 @@
         @Operation(summary = "Ask a question (text/plain body)")
         public QaResponse askText(
             @RequestBody String question,
-            @Parameter(description = "Filter responses for laws effective at this date-time")
+            @Parameter(description = "Filter responses for laws effective at this date (YYYY-MM-DD)")
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-            LocalDateTime effectiveAt
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate effectiveAt
         ) {
             return ragClient.ask(question, effectiveAt);
         }
@@ -43,10 +43,10 @@
         @Operation(summary = "Ask a question (JSON body)")
         public QaResponse askJson(
             @RequestBody QaRequest body,
-            @Parameter(description = "Filter responses for laws effective at this date-time")
+            @Parameter(description = "Filter responses for laws effective at this date (YYYY-MM-DD)")
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-            LocalDateTime effectiveAt
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate effectiveAt
         ) {
             return ragClient.ask(body.getQuestion(), effectiveAt);
         }
@@ -56,8 +56,8 @@
         public QaResponse rerank(
             @RequestBody QaRequest body,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-            LocalDateTime effectiveAt,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate effectiveAt,
             @RequestParam(defaultValue = "false") boolean useReranker
         ) {
             return ragClient.ask(body.getQuestion(), effectiveAt, useReranker);
