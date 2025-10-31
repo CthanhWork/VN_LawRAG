@@ -101,17 +101,26 @@ Ghi chú PowerShell: `curl` trong PowerShell là alias của `Invoke-WebRequest`
 ## Nhúng dữ liệu vào Chroma (tăng chất lượng trả lời)
 Mặc định Chroma có thể trống, câu trả lời sẽ ít ngữ cảnh. Hãy chạy script nhúng để tạo embeddings từ DB và đưa vào Chroma.
 
-1) Chạy script nhúng
+1) Chép script nhúng vào container `rag-service` (script ở repo: `tools/embed_laws.py`)
 
 ```powershell
-docker compose exec rag-service python /app/embed_laws.py
+docker compose cp tools/embed_laws.py rag-service:/app/embed_laws.py
 ```
 
-Lưu ý schema: Flyway tạo cột mã luật là `laws.code`. Nếu script của bạn dùng `laws.law_code`, hãy sửa lại truy vấn trong `embed_laws.py` thành `l.code AS law_code` hoặc điều chỉnh cho phù hợp với schema hiện tại trước khi chạy.
+2) Chạy script trong container `rag-service`
+
+```powershell
+docker compose exec rag-service bash -lc "DB_HOST=mysql DB_PORT=3306 DB_NAME=laws DB_USER=app DB_PASS=app CHROMA_PATH=/data/chroma python /app/embed_laws.py"
+```
 
 ## Swagger và Postman
 - Swagger UI: http://localhost:8080/swagger-ui/index.html
 - Postman collection: `postman/Law Service.postman_collection.json`
+
+## Viewer web đơn giản
+- File: `web/viewer.html`
+- Chạy nhanh: `python -m http.server 3000` rồi mở http://localhost:3000/web/viewer.html
+- Yêu cầu: law-service chạy ở http://localhost:8080
 
 ## Khắc phục sự cố
 - 400 khi gọi `/api/qa` (JSON): kiểm tra body JSON có trường `question` chưa. In lỗi chi tiết:

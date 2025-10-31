@@ -1,14 +1,14 @@
 # API Usage Guide (Law Service)
 
-This guide explains what each endpoint does, how to call it, and gives example requests/responses. Use it together with Swagger UI for live testing.
+This guide reflects the current Java controllers and DTOs. It explains each endpoint, parameters, and example requests/responses. Use together with Swagger UI for live testing.
 
 - Swagger UI: http://localhost:8080/swagger-ui/index.html
 - Base URL: http://localhost:8080
 
 General
-- Date filter: `effectiveAt` uses `YYYY-MM-DD` (e.g., `2024-01-01`). Use as a query param for `/api/qa` and as a JSON field for `/api/qa/gen`.
-- Paging (when available): `page` (0-based), `size`.
-- Admin endpoints require header `X-API-KEY`.
+- Date filter: `effectiveAt` uses `YYYY-MM-DD` (e.g., `2024-01-01`). For QA: query param on `/api/qa` and JSON field on `/api/qa/gen`.
+- Paging (when available): `page` (0-based), `size`. Node endpoints return `PageResponse<T>`: `content`, `pageNumber`, `pageSize`, `totalElements`, `totalPages`, `first`, `last`.
+- Admin endpoints require `X-API-KEY` when `security.admin.api-key` is configured.
 
 ---
 
@@ -16,32 +16,25 @@ General
 
 ### GET /api/laws
 Purpose
-- List laws with optional paging.
+- List all laws. Returns an array (no paging on this endpoint).
 
 Query params
-- `page` (number, optional)
-- `size` (number, optional)
+- none
 
 Example request
 ```
-GET /api/laws?page=0&size=10
+GET /api/laws
 ```
 
-Example response (shape)
+Example response (array)
 ```json
-{
-  "content": [
-    {
-      "id": 1,
-      "code": "52/2014/QH13",
-      "title": "Luật Hôn nhân và Gia đình",
-      "effectiveDate": "2015-01-01"
-    }
-  ],
-  "page": 0,
-  "size": 10,
-  "totalElements": 1
-}
+[
+  {
+    "id": 1,
+    "code": "121/VBHN-VPQH",
+    "title": "Văn bản hợp nhất 121/VBHN-VPQH"
+  }
+]
 ```
 
 ### GET /api/laws/{id}
@@ -70,6 +63,9 @@ Example request
 GET /api/laws/search?keyword=hon%20nhan&page=0&size=10
 ```
 
+Response
+- Spring Data `Page<Law>` (standard Spring page JSON), including keys like `content`, `pageable`, `size`, `number`, `totalElements`, `totalPages`, `first`, `last`.
+
 ### GET /api/laws/suggest
 Purpose
 - Autocomplete law titles/codes.
@@ -81,6 +77,18 @@ Query params
 Example request
 ```
 GET /api/laws/suggest?keyword=hon&limit=10
+```
+
+### GET /api/suggestions
+Purpose
+- Global autocomplete (currently returns law suggestions; same shape as `/api/laws/suggest`).
+
+Query params
+- `keyword` (string, required)
+
+Example request
+```
+GET /api/suggestions?keyword=121
 ```
 
 ---
@@ -96,11 +104,16 @@ Path params
 
 Query params
 - `effectiveAt` (string, optional, `YYYY-MM-DD`)
+- `page` (number, optional)
+- `size` (number, optional)
 
 Example request
 ```
-GET /api/laws/1/nodes?effectiveAt=2024-01-01
+GET /api/laws/1/nodes?effectiveAt=2019-01-01&page=0&size=20
 ```
+
+Response
+- `PageResponse<LawNode>` with `content`, `pageNumber`, `pageSize`, `totalElements`, `totalPages`, `first`, `last`.
 
 ### GET /api/nodes/{id}
 Purpose
@@ -126,8 +139,11 @@ Query params
 
 Example request
 ```
-GET /api/nodes/search?keyword=ket%20hon&effectiveAt=2024-01-01&page=0&size=10
+GET /api/nodes/search?keyword=ket%20hon&effectiveAt=2019-01-01&page=0&size=10
 ```
+
+Response
+- `PageResponse<LawNode>` (see fields above).
 
 ### GET /api/nodes/search/fulltext
 Purpose
@@ -142,6 +158,9 @@ Example request
 ```
 GET /api/nodes/search/fulltext?q=ket%20hon&page=0&size=10
 ```
+
+Response
+- `PageResponse<NodeSearchDTO>` where each item includes `id`, `lawId`, `level`, `ordinalLabel`, `heading`, `snippet` (HTML with `<mark>` tags).
 
 ---
 
@@ -170,14 +189,16 @@ Example body
 Example response (shape)
 ```json
 {
-  "answer": "Trả lời rất gọn dựa trên trích dẫn...",
-  "effective_at": "2024-01-01",
+  "answer": "Trả lời rút gọn...",
+  "effectiveAt": "2019-01-01",
   "context": [
     {
-      "law_code": "52/2014/QH13",
-      "node_path": "/52/2014/QH13/Dieu-8/Khoan-1",
-      "node_id": 123,
-      "content": "Nam đủ 20 tuổi..."
+      "content": "Nam từ đủ 20 tuổi...",
+      "lawCode": "121/VBHN-VPQH",
+      "nodePath": "/121/VBHN-VPQH/Dieu-8/Khoan-1",
+      "nodeId": 101,
+      "effectiveStart": "2015-01-01",
+      "effectiveEnd": "2099-12-31"
     }
   ]
 }
@@ -209,12 +230,13 @@ Example body
 Example response (shape)
 ```json
 {
-  "answer": "Trả lời rất gọn dựa trên trích dẫn...",
+  "answer": "Trả lời rút gọn...",
   "citations": [
-    { "law_code": "52/2014/QH13", "node_path": "/52/2014/QH13/Dieu-8", "node_id": 100 },
-    { "law_code": "52/2014/QH13", "node_path": "/52/2014/QH13/Dieu-8/Khoan-1", "node_id": 101 }
+    { "lawCode": "121/VBHN-VPQH", "nodePath": "/121/VBHN-VPQH/Dieu-8", "nodeId": 100 },
+    { "lawCode": "121/VBHN-VPQH", "nodePath": "/121/VBHN-VPQH/Dieu-8/Khoan-1", "nodeId": 101 }
   ],
-  "used_nodes": [100, 101]
+  "effectiveAt": "2019-01-01",
+  "usedNodes": [100, 101]
 }
 ```
 
@@ -239,12 +261,7 @@ X-API-KEY: your-admin-key
 ```
 
 Response
-```
-202 Accepted
-{
-  "status": "accepted"
-}
-```
+- `202 Accepted` with empty body.
 
 ---
 
@@ -306,25 +323,26 @@ docker compose up --build
 
 ```
 # Laws
-curl "http://localhost:8080/api/laws?page=0&size=5"
+curl "http://localhost:8080/api/laws"
 curl "http://localhost:8080/api/laws/1"
 curl "http://localhost:8080/api/laws/search?keyword=hon&page=0&size=5"
 curl "http://localhost:8080/api/laws/suggest?keyword=hon&limit=10"
+curl "http://localhost:8080/api/suggestions?keyword=121"
 
 # Nodes
-curl "http://localhost:8080/api/laws/1/nodes?effectiveAt=2024-01-01"
+curl "http://localhost:8080/api/laws/1/nodes?effectiveAt=2019-01-01&page=0&size=20"
 curl "http://localhost:8080/api/nodes/1"
-curl "http://localhost:8080/api/nodes/search?keyword=ket%20hon&effectiveAt=2024-01-01&page=0&size=5"
+curl "http://localhost:8080/api/nodes/search?keyword=ket%20hon&effectiveAt=2019-01-01&page=0&size=5"
 curl "http://localhost:8080/api/nodes/search/fulltext?q=ket%20hon&page=0&size=5"
 
 # QA (RAG)
-curl -X POST "http://localhost:8080/api/qa?effectiveAt=2024-01-01" \
+curl -X POST "http://localhost:8080/api/qa?effectiveAt=2019-01-01" \
   -H "Content-Type: application/json" \
   -d '{"question":"Dieu kien ket hon la gi?"}'
 
 curl -X POST "http://localhost:8080/api/qa/gen" \
   -H "Content-Type: application/json" \
-  -d '{"question":"Dieu kien ket hon la gi?","effectiveAt":"2024-01-01","k":8}'
+  -d '{"question":"Dieu kien ket hon la gi?","effectiveAt":"2019-01-01","k":8}'
 
 # Admin (cần API key)
 curl -X POST "http://localhost:8080/api/admin/reindex" \

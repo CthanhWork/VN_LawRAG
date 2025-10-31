@@ -1,6 +1,7 @@
 package com.example.lawservice.controller;
 
 import com.example.lawservice.dto.PageResponse;
+import com.example.lawservice.dto.NodeDTO;
 import com.example.lawservice.dto.NodeSearchDTO;
 import com.example.lawservice.model.LawNode;
 import com.example.lawservice.repository.LawNodeRepository;
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,13 +32,13 @@ public class NodeController {
 
     @GetMapping("/laws/{lawId}/nodes")
     @Operation(summary = "Get nodes for a specific law")
-    public PageResponse<LawNode> getByLaw(
+    public PageResponse<NodeDTO> getByLaw(
         @PathVariable Long lawId,
         @Parameter(description = "Filter nodes effective at this date (YYYY-MM-DD)")
         @RequestParam(required = false) 
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) 
         LocalDate effectiveAt,
-        Pageable pageable
+        @ParameterObject Pageable pageable
     ) {
         Page<LawNode> nodes;
         if (effectiveAt != null) {
@@ -44,26 +46,28 @@ public class NodeController {
         } else {
             nodes = nodeRepository.findByLaw_Id(lawId, pageable);
         }
-        return PageResponse.from(nodes);
+        Page<NodeDTO> mapped = nodes.map(this::toDto);
+        return PageResponse.from(mapped);
     }
 
     @GetMapping("/nodes/{id}")
     @Operation(summary = "Get a specific node by ID")
-    public ResponseEntity<LawNode> getNode(@PathVariable Long id) {
+    public ResponseEntity<NodeDTO> getNode(@PathVariable Long id) {
         return nodeRepository.findById(id)
+            .map(this::toDto)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/nodes/search")
     @Operation(summary = "Search nodes by content")
-    public PageResponse<LawNode> searchNodes(
+    public PageResponse<NodeDTO> searchNodes(
         @RequestParam String keyword,
         @Parameter(description = "Filter nodes effective at this date (YYYY-MM-DD)")
         @RequestParam(required = false) 
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) 
         LocalDate effectiveAt,
-        Pageable pageable
+        @ParameterObject Pageable pageable
     ) {
         Page<LawNode> nodes;
         if (effectiveAt != null) {
@@ -71,15 +75,34 @@ public class NodeController {
         } else {
             nodes = nodeRepository.findByContentTextContainingIgnoreCase(keyword, pageable);
         }
-        return PageResponse.from(nodes);
+        Page<NodeDTO> mapped = nodes.map(this::toDto);
+        return PageResponse.from(mapped);
     }
 
     @GetMapping("/nodes/search/fulltext")
     @Operation(summary = "Fulltext search nodes by content with highlight")
     public PageResponse<NodeSearchDTO> searchNodesFulltext(
         @RequestParam("q") String q,
-        Pageable pageable
+        @ParameterObject Pageable pageable
     ) {
         return nodeSearchService.fulltext(q, pageable);
+    }
+
+    private NodeDTO toDto(LawNode n) {
+        return NodeDTO.builder()
+            .id(n.getId())
+            .lawId(n.getLaw() != null ? n.getLaw().getId() : null)
+            .parentId(n.getParent() != null ? n.getParent().getId() : null)
+            .level(n.getLevel())
+            .ordinalLabel(n.getOrdinalLabel())
+            .heading(n.getHeading())
+            .contentText(n.getContentText())
+            .contentHtml(n.getContentHtml())
+            .sortKey(n.getSortKey())
+            .path(n.getPath())
+            .title(n.getTitle())
+            .effectiveStart(n.getEffectiveStart())
+            .effectiveEnd(n.getEffectiveEnd())
+            .build();
     }
 }

@@ -1,0 +1,164 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>VN Law Viewer</title>
+<style>
+  :root{--bd:#e5e7eb;--muted:#6b7280;--hl:#fde68a}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.45 system-ui,Segoe UI,Arial,sans-serif;display:grid;grid-template-rows:56px 1fr}
+  header{display:grid;grid-template-columns:320px 1fr 420px;gap:8px;align-items:center;padding:8px 12px;background:#f6f7f9;border-bottom:1px solid var(--bd)}
+  #main{display:grid;grid-template-columns:340px 1fr 420px;gap:0;height:100%}
+  #toc{overflow:auto;border-right:1px solid var(--bd);padding:10px}
+  #content{overflow:auto;padding:16px}
+  #searchPanel{overflow:auto;border-left:1px solid var(--bd);padding:10px}
+  input,button,select{padding:6px 8px}
+  ul.tree{list-style:none;padding-left:12px;margin:0}
+  .node{cursor:pointer;margin:2px 0}
+  .node small{color:var(--muted)}
+  .muted{color:var(--muted)}
+  pre{white-space:pre-wrap}
+  .hit{border-bottom:1px solid #eee;padding:8px 0;cursor:pointer}
+  .hit .snip mark{background:var(--hl)}
+  .law-head{display:flex;gap:8px;align-items:center}
+  .empty{padding:12px;color:var(--muted)}
+</style>
+<header>
+  <div class="law-head">
+    <label for="lawSel">Luật:</label>
+    <select id="lawSel"></select>
+  </div>
+  <div>
+    <input id="searchInput" placeholder="Tìm full‑text (ví dụ: kết hôn)" style="width:60%">
+    <input id="effectiveAt" type="date" style="width:160px">
+    <button id="btnSearch">Tìm</button>
+  </div>
+  <div>
+    <input id="qaInput" placeholder="Hỏi đáp (vd: Điều kiện kết hôn?)" style="width:260px">
+    <input id="qaDate" type="date" style="width:120px">
+    <button id="btnAsk">Hỏi</button>
+  </div>
+  <div class="muted" style="grid-column:1/-1;font-size:12px;margin-top:4px">
+    API: http://localhost:8080 (law-service). Mở file này qua http://localhost:3000 để tránh CORS.
+  </div>
+</header>
+<div id="main">
+  <div id="toc"><div class="muted">Đang tải danh sách Luật…</div></div>
+  <div id="content"><div class="muted">Chọn Điều/Khoản ở cột trái hoặc gõ từ khóa để tìm.</div></div>
+  <div id="searchPanel"></div>
+</div>
+<script>
+  const BASE = "http://localhost:8080"; // law-service
+  const $ = (s)=>document.querySelector(s);
+  const lawSel = $("#lawSel"), toc = $("#toc"), content=$("#content"), searchPanel=$("#searchPanel");
+  const sInput=$("#searchInput"), sDate=$("#effectiveAt"), btnSearch=$("#btnSearch");
+  const qaInput=$("#qaInput"), qaDate=$("#qaDate"), btnAsk=$("#btnAsk");
+
+  const fmt = (v)=> v==null?"":String(v);
+
+  async function getJSON(url){
+    const r = await fetch(url);
+    if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    return r.json();
+  }
+  async function postJSON(url, body){
+    const r = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
+    if(!r.ok){
+      const t = await r.text();
+      throw new Error(t||`${r.status}`);
+    }
+    return r.json();
+  }
+
+  function renderTOC(list){
+    if(!list || !list.length){toc.innerHTML = '<div class="empty">Không có mục lục.</div>'; return;}
+    function li(n){
+      const kids = n.children||[];
+      const label = fmt(n.label);
+      return `<li class="node" data-id="${n.id}"><span>${label} <small>(${fmt(n.level)})</small></span>${kids.length?`<ul class="tree">${kids.map(li).join("")}</ul>`:""}</li>`;
+    }
+    toc.innerHTML = `<ul class="tree">${list.map(li).join("")}</ul>`;
+    toc.querySelectorAll('.node').forEach(el=>{
+      el.addEventListener('click', ev=>{
+        ev.stopPropagation();
+        const id = el.getAttribute('data-id');
+        loadNode(id);
+      })
+    })
+  }
+
+  function showNode(n){
+    if(!n){ content.innerHTML='<div class="empty">Không có dữ liệu.</div>'; return; }
+    const header = `<div class="muted">#${n.id} — ${fmt(n.ordinalLabel)||fmt(n.title)||""} (${fmt(n.level)})</div>`;
+    const h2 = n.heading? `<h2>${n.heading}</h2>`: "";
+    const body = n.contentHtml? n.contentHtml : (n.contentText? `<pre>${n.contentText}</pre>`: '<div class="muted">(không có nội dung)</div>');
+    content.innerHTML = `${header}${h2}${body}`;
+  }
+
+  async function loadLaws(){
+    try{
+      const laws = await getJSON(`${BASE}/api/laws`);
+      if(!Array.isArray(laws) || !laws.length){
+        toc.innerHTML = '<div class="empty">Chưa có Luật trong DB.</div>';
+        return;
+      }
+      lawSel.innerHTML = laws.map(l=>`<option value="${l.id}">${fmt(l.code)} — ${fmt(l.title)}</option>`).join("");
+      lawSel.onchange = ()=> loadTOC(lawSel.value);
+      await loadTOC(laws[0].id);
+    }catch(e){ toc.innerHTML = `<pre class="muted">Lỗi tải Luật: ${e.message}</pre>`; }
+  }
+
+  async function loadTOC(lawId){
+    content.innerHTML = '<div class="muted">Đang tải mục lục…</div>';
+    try{
+      const data = await getJSON(`${BASE}/api/laws/${lawId}/toc`);
+      renderTOC(data);
+      content.innerHTML = '<div class="muted">Nhấp Điều/Khoản ở cột trái để xem nội dung.</div>';
+    }catch(e){ toc.innerHTML = `<pre class="muted">Lỗi tải TOC: ${e.message}</pre>`; }
+  }
+
+  async function loadNode(id){
+    content.innerHTML = '<div class="muted">Đang tải nội dung…</div>';
+    try{
+      const n = await getJSON(`${BASE}/api/nodes/${id}`);
+      showNode(n);
+    }catch(e){ content.innerHTML = `<pre class="muted">Lỗi tải node: ${e.message}</pre>`; }
+  }
+
+  async function doSearch(){
+    const q = sInput.value.trim();
+    if(!q) return;
+    const params = new URLSearchParams({ q, page:"0", size:"20" });
+    if(sDate.value) params.set('effectiveAt', sDate.value);
+    searchPanel.innerHTML = '<div class="muted">Đang tìm…</div>';
+    try{
+      const res = await getJSON(`${BASE}/api/nodes/search/fulltext?${params.toString()}`);
+      const list = (res && res.content) || [];
+      if(!list.length){ searchPanel.innerHTML = '<div class="empty">Không có kết quả.</div>'; return; }
+      searchPanel.innerHTML = `<div><b>Kết quả:</b> ${list.length}</div>` + list.map(h=>{
+        const label = `${fmt(h.ordinalLabel)||''} ${fmt(h.heading)||''}`.trim();
+        return `<div class="hit" data-id="${h.id}">
+                  <div><b>${label||'(không tiêu đề)'}</b></div>
+                  <div class="snip">${h.snippet||''}</div>
+                </div>`
+      }).join('');
+      searchPanel.querySelectorAll('.hit').forEach(el=> el.addEventListener('click', ()=> loadNode(el.getAttribute('data-id'))));
+    }catch(e){ searchPanel.innerHTML = `<pre class="muted">Lỗi tìm kiếm: ${e.message}</pre>`; }
+  }
+
+  async function doAsk(){
+    const q = qaInput.value.trim();
+    if(!q) return;
+    const eff = qaDate.value ? `?effectiveAt=${qaDate.value}`: '';
+    content.innerHTML = '<div class="muted">Đang hỏi đáp…</div>';
+    try{
+      const resp = await postJSON(`${BASE}/api/qa${eff}`, { question: q });
+      const ctx = Array.isArray(resp.context)? resp.context : [];
+      const cites = ctx.slice(0,5).map(c=>`- ${fmt(c.content)} [${fmt(c.lawCode)} ${fmt(c.nodePath)}]`).join('\n');
+      content.innerHTML = `<h2>Trả lời</h2><pre>${fmt(resp.answer)}</pre><h3>Trích dẫn</h3><pre>${cites || 'Không có ngữ cảnh phù hợp.'}</pre>`;
+    }catch(e){ content.innerHTML = `<pre class="muted">Lỗi QA: ${e.message}</pre>`; }
+  }
+
+  btnSearch.addEventListener('click', doSearch);
+  btnAsk.addEventListener('click', doAsk);
+  loadLaws();
+</script>
+
