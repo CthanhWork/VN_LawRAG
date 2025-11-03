@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, Response
 import os
 import time
 import json
+import re
 from datetime import date, datetime
 from typing import List, Dict, Any, Optional
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
@@ -136,6 +137,16 @@ def _boost_score(text: str, base: float) -> float:
         boost += 0.04
     return min(1.0, base + boost)
 
+def _penalize_offtopic(text: str, base: float) -> float:
+    t = (text or '').lower()
+    penalty = 0.0
+    if ('d?i' in t or 'doi' in t) and ('ph?m vi' in t or 'pham vi' in t):
+        penalty += 0.06
+    if 'b?n d?i' in t or 'bon doi' in t or 'ba d?i' in t or 'ba doi' in t:
+        penalty += 0.05
+    return max(0.0, base - penalty)
+
+
 
 # Lightweight LLM-assisted Query Understanding (optional)
 def _boost_with_must_phrases(text: str, base: float, phrases: List[str]) -> float:
@@ -259,9 +270,39 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
 
     # Call optional LLM-based query understanding (safe to fail)
     qu = query_understanding_llm(question, effective_at)
+    qu = query_understanding_llm(question, effective_at)
+    # Heuristic detect polygamy question (digits/spelled numbers)
+    is_poly = False
+    try:
+        ql = (question or '').lower()
+        if re.search(r'\\b(\\d+)\\s*(v?|vo)\\b', ql) or any(w in ql for w in ['da thê','da the','nhi?u v?','nhieu vo','l?y thêm v?','lay them vo']):
+            is_poly = True
+        elif ('v?' in ql or 'vo' in ql) and re.search(r'\\b(m?t|mot|hai|ba|b?n|bon|nam|nam|sáu|sau|b?y|bay|tám|tam|chín|chin|mu?i|muoi)\\s+(v?|vo)\\b', ql):
+            is_poly = True
+    except Exception:
+        is_poly = False
     qu_queries: List[str] = []
     qu_must: List[str] = []
     qu_law_codes: List[str] = []
+    eff_override = None
+    # Add strong expansions and must-phrases when polygamy intent is detected
+    if is_poly:
+        extra_queries = [
+            'ch? d? m?t v?, m?t ch?ng',
+            'c?m ngu?i dang có v? ho?c có ch?ng k?t hôn ho?c chung s?ng nhu v? ch?ng v?i ngu?i khác',
+            'di?u 5 lu?t hôn nhân và gia dình các hành vi b? c?m',
+            'di?u 2 lu?t hôn nhân và gia dình nguyên t?c',
+        ]
+        try:
+            qu_queries = (qu_queries or []) + extra_queries
+        except NameError:
+            qu_queries = extra_queries
+        try:
+            if not qu_must:
+                qu_must = ['m?t v?, m?t ch?ng','các hành vi b? c?m','dang có v?','dang có ch?ng','chung s?ng nhu v? ch?ng']
+        except NameError:
+            qu_must = ['m?t v?, m?t ch?ng','các hành vi b? c?m','dang có v?','dang có ch?ng','chung s?ng nhu v? ch?ng']
+
     eff_override = None
     if qu:
         try:
@@ -332,6 +373,13 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
                 qu_must  # type: ignore[name-defined]
                 if qu_must:
                     sim = _boost_with_must_phrases(text or "", sim, qu_must)
+            # Demote kinship-degree clauses when question is about polygamy
+            try:
+                is_poly  # type: ignore[name-defined]
+                if is_poly:
+                    sim = _penalize_offtopic(text or "", sim)
+            except NameError:
+                pass
             except NameError:
                 pass
 
