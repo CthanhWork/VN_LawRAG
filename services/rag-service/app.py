@@ -368,20 +368,16 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
                 sim = 0.0
             sim = _boost_score(text or "", sim)
             # Apply must-phrase boosts from LLM query understanding (if any)
+            # Apply must-phrase boosts from LLM query understanding (if any)
             try:
                 qu_must  # type: ignore[name-defined]
                 if qu_must:
                     sim = _boost_with_must_phrases(text or "", sim, qu_must)
+            except NameError:
+                pass
             # Demote kinship-degree clauses when question is about polygamy
-            try:
-                is_poly  # type: ignore[name-defined]
-                if is_poly:
-                    sim = _penalize_offtopic(text or "", sim)
-            except NameError:
-                pass
-            except NameError:
-                pass
-
+            if is_poly:
+                sim = _penalize_offtopic(text or "", sim)
             if node_id not in merged or sim > merged[node_id]["_sim"]:
                 merged[node_id] = {
                     "law_code": m.get("law_code") if m else None,
