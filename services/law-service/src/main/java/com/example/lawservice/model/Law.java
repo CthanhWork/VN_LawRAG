@@ -1,6 +1,7 @@
 package com.example.lawservice.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDate;
 
 @Entity
@@ -12,6 +13,9 @@ public class Law {
 
     @Column(name = "code", unique = true)
     private String code;
+
+    @Column(name = "doc_type")
+    private String docType; // e.g., LAW, DECREE
 
     @Column(columnDefinition = "TEXT")
     private String title;
@@ -40,11 +44,18 @@ public class Law {
     @Column(name = "source_url")
     private String sourceUrl;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "related_law_id")
+    @JsonIgnore
+    private Law relatedLaw; // link decrees/guidance to a base law
+
     // getters / setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
+    public String getDocType() { return docType; }
+    public void setDocType(String docType) { this.docType = docType; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public String getIssuingBody() { return issuingBody; }
@@ -65,4 +76,6 @@ public class Law {
     public void setUnifiedSource(String unifiedSource) { this.unifiedSource = unifiedSource; }
     public String getSourceUrl() { return sourceUrl; }
     public void setSourceUrl(String sourceUrl) { this.sourceUrl = sourceUrl; }
+    public Law getRelatedLaw() { return relatedLaw; }
+    public void setRelatedLaw(Law relatedLaw) { this.relatedLaw = relatedLaw; }
 }

@@ -79,6 +79,9 @@ Example request
 GET /api/laws/suggest?keyword=hon&limit=10
 ```
 
+Notes
+- The `type` field in suggestion results reflects document type, e.g. `LAW` or `DECREE`.
+
 ### GET /api/suggestions
 Purpose
 - Global autocomplete (currently returns law suggestions; same shape as `/api/laws/suggest`).
@@ -90,6 +93,9 @@ Example request
 ```
 GET /api/suggestions?keyword=121
 ```
+
+Notes
+- Currently returns law documents (including decrees) with `type` set to `LAW` or `DECREE`.
 
 ---
 

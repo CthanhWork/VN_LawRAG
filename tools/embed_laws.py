@@ -29,6 +29,7 @@ def fetch_chunks():
                 """
                 SELECT ln.id,
                        l.code AS law_code,
+                       l.doc_type AS doc_type,
                        CONCAT_WS(' → ', NULLIF(ln2.ordinal_label,''), NULLIF(ln.ordinal_label,'')) AS node_path,
                        COALESCE(ln.content_text, ln.content_html) AS text,
                        COALESCE(DATE_FORMAT(ln.effective_start,'%Y-%m-%d'),'1900-01-01') AS effective_start,
@@ -66,6 +67,7 @@ def main():
             {
                 "node_id": r["id"],
                 "law_code": r["law_code"],
+                "doc_type": r.get("doc_type") or "LAW",
                 "node_path": r["node_path"] or "",
                 "effective_start": r["effective_start"],
                 "effective_end": r["effective_end"],
@@ -81,4 +83,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

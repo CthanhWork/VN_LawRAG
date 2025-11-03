@@ -113,6 +113,11 @@ docker compose cp tools/embed_laws.py rag-service:/app/embed_laws.py
 docker compose exec rag-service bash -lc "DB_HOST=mysql DB_PORT=3306 DB_NAME=laws DB_USER=app DB_PASS=app CHROMA_PATH=/data/chroma python /app/embed_laws.py"
 ```
 
+### Bổ sung Nghị định (decrees) cho Luật HN&GĐ
+- Schema hỗ trợ `doc_type` (LAW/DECREE) và liên kết `related_law_id` để gắn nghị định với luật cơ sở (ví dụ 52/2014/QH13).
+- Dùng `tools/import_pdf.py` với `--doc-type DECREE --related-law-code 52/2014/QH13` để nhập nghị định.
+- Xem hướng dẫn chi tiết và lệnh mẫu tại `docs/decrees/README.md`.
+
 ## Swagger và Postman
 - Swagger UI: http://localhost:8080/swagger-ui/index.html
 - Postman collection: `postman/Law Service.postman_collection.json`

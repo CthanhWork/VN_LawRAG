@@ -75,12 +75,15 @@ public class LawController {
         // Load all nodes for the law with parent fetched to avoid LazyInitialization (open-in-view=false)
         List<LawNode> nodes = nodeRepository.findByLaw_IdOrderBySortKeyAscWithParent(id);
 
-        // Group by parent_id
+        // Group by parent_id (exclude null keys to avoid collector errors)
         Map<Long, List<LawNode>> byParentId = nodes.stream()
-                .collect(Collectors.groupingBy(n -> n.getParent() != null ? n.getParent().getId() : null));
+                .filter(n -> n.getParent() != null)
+                .collect(Collectors.groupingBy(n -> n.getParent().getId()));
 
         // Build tree from root nodes (parent_id IS NULL)
-        List<LawNode> roots = byParentId.getOrDefault(null, new ArrayList<>());
+        List<LawNode> roots = nodes.stream()
+                .filter(n -> n.getParent() == null)
+                .collect(Collectors.toCollection(ArrayList::new));
         roots.sort((a, b) -> nullSafe(a.getSortKey()).compareToIgnoreCase(nullSafe(b.getSortKey())));
 
         List<TocDTO> toc = roots.stream()

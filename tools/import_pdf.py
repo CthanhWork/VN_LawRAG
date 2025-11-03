@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-Nhập 1 file PDF luật vào MySQL (tables: laws, law_nodes)
+Nhập 1 file PDF văn bản pháp luật vào MySQL (tables: laws, law_nodes)
 
 - Trích xuất text từ PDF (ưu tiên PyPDF2; fallback pdfminer.six nếu có)
 - Tách theo Điều/Khoản bằng heuristic phổ biến ("Điều X.", "Khoản Y" hoặc "Y.")
-- Ghi bản ghi vào bảng `laws` (unique code) và các `law_nodes` (DIEU, KHOAN) kèm sort_key, path, title.
+- Ghi bản ghi vào bảng `laws` (unique code, doc_type=LAW/DECREE, liên kết related_law_id nếu có) và các `law_nodes` (DIEU, KHOAN) kèm sort_key, path, title.
 
 Cách dùng (với MySQL trong docker-compose: localhost:3307, app/app):
 
@@ -16,6 +16,15 @@ Cách dùng (với MySQL trong docker-compose: localhost:3307, app/app):
     --code "121/VBHN-VPQH" \
     --title "Văn bản hợp nhất 121/VBHN-VPQH" \
     --effective-start 2019-01-01
+
+Nhập Nghị định (gắn với Luật HN&GĐ):
+
+  python tools/import_pdf.py \
+    --file nghi-dinh-x.pdf \
+    --title "Nghị định ..." \
+    --doc-type DECREE \
+    --related-law-code "52/2014/QH13" \
+    --effective-start 2015-01-01
 
 Tuỳ chọn DB:
   --db-host localhost --db-port 3307 --db-name laws --db-user app --db-pass app
@@ -261,21 +270,41 @@ def connect_db(host: str, port: int, user: str, password: str, db: str):
     return conn
 
 
-def upsert_law(conn, code: str, title: str, issuing_body: Optional[str] = None,
-               promulgation_date: Optional[str] = None,
-               effective_date: Optional[str] = None,
-               expire_date: Optional[str] = None) -> int:
+def get_law_id_by_code(conn, code: str) -> Optional[int]:
     with conn.cursor() as cur:
         cur.execute("SELECT id FROM laws WHERE code=%s", (code,))
         row = cur.fetchone()
+        return int(row["id"]) if row else None
+
+
+def upsert_law(conn, code: str, title: str, issuing_body: Optional[str] = None,
+               promulgation_date: Optional[str] = None,
+               effective_date: Optional[str] = None,
+               expire_date: Optional[str] = None,
+               doc_type: Optional[str] = None,
+               related_law_code: Optional[str] = None) -> int:
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM laws WHERE code=%s", (code,))
+        row = cur.fetchone()
+        related_id = None
+        if related_law_code:
+            cur.execute("SELECT id FROM laws WHERE code=%s", (related_law_code,))
+            r = cur.fetchone()
+            related_id = int(r["id"]) if r else None
         if row:
+            # If exists, optionally update doc_type/related_law if provided
+            if doc_type or related_id is not None:
+                cur.execute(
+                    "UPDATE laws SET doc_type=COALESCE(%s, doc_type), related_law_id=%s WHERE id=%s",
+                    (doc_type, related_id, int(row["id"]))
+                )
             return int(row["id"])
         cur.execute(
             """
-            INSERT INTO laws (code, title, issuing_body, promulgation_date, effective_date, expire_date, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO laws (code, doc_type, title, issuing_body, promulgation_date, effective_date, expire_date, status, related_law_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (code, title, issuing_body, promulgation_date, effective_date, expire_date, None),
+            (code, (doc_type or 'LAW'), title, issuing_body, promulgation_date, effective_date, expire_date, None, related_id),
         )
         return int(cur.lastrowid)
 
@@ -420,6 +449,8 @@ def main():
     ap.add_argument("--issuing-body", dest="issuing_body", help="Issuing body (optional)")
     ap.add_argument("--promulgation-date", dest="promulgation_date", help="YYYY-MM-DD (optional)")
     ap.add_argument("--replace", action="store_true", help="If law code exists: delete old nodes and re-import")
+    ap.add_argument("--doc-type", dest="doc_type", choices=["LAW", "DECREE"], default=None, help="Document type: LAW or DECREE")
+    ap.add_argument("--related-law-code", dest="related_law_code", help="Code of the law this document is related to (e.g., 52/2014/QH13)")
     ap.add_argument("--dry-run", action="store_true", help="Parse only, do not write to DB")
 
     ap.add_argument("--db-host", default=os.getenv("DB_HOST") or "localhost")
@@ -496,7 +527,7 @@ def main():
             delete_nodes_for_law(conn, int(existing["id"]))
             law_id = int(existing["id"])
         else:
-            law_id = upsert_law(conn, code, title, args.issuing_body, args.promulgation_date, eff_start, eff_end)
+            law_id = upsert_law(conn, code, title, args.issuing_body, args.promulgation_date, eff_start, eff_end, args.doc_type, args.related_law_code)
 
         insert_nodes(conn, law_id, code, chapters, orphans, eff_start, eff_end)
         conn.commit()

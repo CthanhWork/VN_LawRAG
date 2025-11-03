@@ -26,7 +26,7 @@ public class SuggestionService {
         return lawRepository.findSuggestions(keyword, capped).stream()
             .map(law -> SuggestionDTO.builder()
                 .id(law.getId())
-                .type("LAW")
+                .type(law.getDocType() != null ? law.getDocType() : "LAW")
                 .text(law.getTitle())
                 .code(law.getCode())
                 .build())

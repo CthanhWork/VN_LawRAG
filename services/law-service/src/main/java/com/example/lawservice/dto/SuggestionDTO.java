@@ -12,7 +12,7 @@ public class SuggestionDTO {
     @Schema(description = "ID of the suggested item")
     private Long id;
     
-    @Schema(description = "Type of suggestion (LAW or NODE)")
+    @Schema(description = "Type of suggestion (e.g., LAW, DECREE, NODE)")
     private String type;
     
     @Schema(description = "Display text for the suggestion")
