@@ -443,7 +443,7 @@ def synthesize_answer2(question: str, effective_at: str, contexts: list):
         "hai vợ", "ba vợ", "đa thê", "nhiều vợ", "lấy 2 vợ", "lấy 3 vợ",
         "hai vo", "ba vo", "da the", "nhieu vo", "lay 2 vo", "lay 3 vo",
     ]
-    is_poly_q = any(m in ql for m in poly_q_markers) or ("vợ" in ql and ql.count("vợ") >= 2)
+    is_poly_q = any(m in ql for m in poly_q_markers) or bool(re.search(r"\b(\d+)\s*(v?|vo)\b", ql)) or ("v?" in ql and ql.count("v?") >= 2) or bool(re.search(r"\b(m?t|mot|hai|ba|b?n|bon|nam|nam|s�u|sau|b?y|bay|t�m|tam|ch�n|chin|mu?i|muoi)\s+(v?|vo)\b", ql))
     has_monogamy = any("một vợ, một chồng" in t or "mot vo, mot chong" in t for t in ctx_texts)
     has_prohibit = any("cấm" in t and ("đang có vợ" in t or "dang co vo" in t or "đang có chồng" in t or "dang co chong" in t) for t in ctx_texts)
 
@@ -559,4 +559,5 @@ if __name__ == "__main__":
     host = os.getenv("RAG_HOST", "0.0.0.0")
     port = int(os.getenv("RAG_PORT", "5001"))
     app.run(host=host, port=port)
+
 
