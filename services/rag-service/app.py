@@ -270,7 +270,6 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
 
     # Call optional LLM-based query understanding (safe to fail)
     qu = query_understanding_llm(question, effective_at)
-    qu = query_understanding_llm(question, effective_at)
     # Heuristic detect polygamy question (digits/spelled numbers)
     is_poly = False
     try:
