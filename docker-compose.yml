@@ -30,6 +30,10 @@ services:
     build: ./services/rag-service
     env_file:
       - .env
+    environment:
+      - USE_LLM_QU=${USE_LLM_QU:-false}
+      - QU_MODEL=${QU_MODEL:-gpt-4o-mini}
+      # OPENAI_API_KEY should be provided via .env or shell env, never commit it
     volumes:
       - chroma:/data/chroma
     ports:

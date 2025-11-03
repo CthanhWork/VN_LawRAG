@@ -257,6 +257,25 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             "content": "Chưa khởi tạo mô hình/Chroma. Kiểm tra logs của container rag-service."
         }]
 
+    # Call optional LLM-based query understanding (safe to fail)
+    qu = query_understanding_llm(question, effective_at)
+    qu_queries: List[str] = []
+    qu_must: List[str] = []
+    qu_law_codes: List[str] = []
+    eff_override = None
+    if qu:
+        try:
+            qu_queries = list(qu.get("subqueries") or [])
+            normalized = qu.get("normalized")
+            if isinstance(normalized, str) and normalized.strip():
+                qu_queries.append(normalized.strip())
+            filters = qu.get("filters") or {}
+            qu_must = list(filters.get("must_phrases") or [])
+            qu_law_codes = list(filters.get("law_codes") or [])
+            eff_override = filters.get("effective_at") or None
+        except Exception:
+            qu_queries, qu_must, qu_law_codes, eff_override = [], [], [], None
+
     # Merge LLM QU queries with rule-based expansions
     queries = _expand_queries(question) or [question]
     try:
