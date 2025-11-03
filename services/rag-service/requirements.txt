@@ -3,3 +3,4 @@ sentence-transformers
 chromadb
 pymysql
 prometheus-client
+openai>=1.40.0

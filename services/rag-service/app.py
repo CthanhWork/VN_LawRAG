@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, Response
 import os
 import time
+import json
 from datetime import date, datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 # Lazy-initialized globals
@@ -13,6 +14,8 @@ init_error = None
 
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "keepitreal/vietnamese-sbert")
 CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma")
+USE_LLM_QU = os.getenv("USE_LLM_QU", "false").lower() in ("1", "true", "yes")
+QU_MODEL = os.getenv("QU_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
 
 app = Flask(__name__)
 
@@ -134,6 +137,73 @@ def _boost_score(text: str, base: float) -> float:
     return min(1.0, base + boost)
 
 
+# Lightweight LLM-assisted Query Understanding (optional)
+def _boost_with_must_phrases(text: str, base: float, phrases: List[str]) -> float:
+    if not phrases:
+        return base
+    t = (text or "").lower()
+    inc = 0.0
+    for p in phrases:
+        p = (p or "").lower().strip()
+        if p and p in t:
+            inc += 0.05
+            if inc >= 0.15:
+                break
+    return min(1.0, base + inc)
+
+
+def _safe_json_parse(s: str) -> Optional[dict]:
+    try:
+        return json.loads(s)
+    except Exception:
+        return None
+
+
+def query_understanding_llm(question: str, effective_at: Optional[str] = None) -> Optional[dict]:
+    if not USE_LLM_QU:
+        return None
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        sys = (
+            "Bạn là bộ tiền xử lý câu hỏi pháp lý Việt Nam. "
+            "Chỉ chuẩn hóa truy vấn và trích xuất ràng buộc. "
+            "KHÔNG tạo nội dung pháp lý mới. Trả về JSON đúng schema."
+        )
+        user = {
+            "question": question,
+            "effective_at": effective_at,
+            "schema": {
+                "normalized": "string",
+                "subqueries": ["string"],
+                "filters": {
+                    "effective_at": "string|null",
+                    "must_phrases": ["string"],
+                    "law_codes": ["string"],
+                    "levels": ["string"],
+                    "intent": "YES_NO|DEFINITION|CONDITION|PENALTY|PROCEDURE|OTHER",
+                },
+            },
+        }
+        resp = client.chat.completions.create(
+            model=QU_MODEL,
+            temperature=0.1,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": sys},
+                {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+            ],
+        )
+        txt = resp.choices[0].message.content if resp and resp.choices else None
+        data = _safe_json_parse(txt or "")
+        return data or None
+    except Exception:
+        return None
+
+
 def retrieve(question: str, effective_at: str, k: int = 8):
     # If not initialized, return a placeholder context explaining the issue
     if not ensure_inited():
@@ -187,10 +257,31 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             "content": "Chưa khởi tạo mô hình/Chroma. Kiểm tra logs của container rag-service."
         }]
 
+    # Merge LLM QU queries with rule-based expansions
     queries = _expand_queries(question) or [question]
+    try:
+        qu_queries  # type: ignore[name-defined]
+        if qu_queries:
+            queries = queries + qu_queries
+    except NameError:
+        pass
+    # Deduplicate and cap
+    seenq = set()
+    deduped = []
+    for q in queries:
+        if q and q not in seenq:
+            seenq.add(q)
+            deduped.append(q)
+    queries = deduped[:8]
     qvecs = [emb.encode([q])[0].tolist() for q in queries]
 
     where = {"doc_type": {"$in": ["LAW", "DECREE"]}}
+    try:
+        qu_law_codes  # type: ignore[name-defined]
+        if qu_law_codes:
+            where["law_code"] = {"$in": qu_law_codes}
+    except NameError:
+        pass
 
     res = col.query(
         query_embeddings=qvecs,
@@ -217,6 +308,13 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             except Exception:
                 sim = 0.0
             sim = _boost_score(text or "", sim)
+            # Apply must-phrase boosts from LLM query understanding (if any)
+            try:
+                qu_must  # type: ignore[name-defined]
+                if qu_must:
+                    sim = _boost_with_must_phrases(text or "", sim, qu_must)
+            except NameError:
+                pass
 
             if node_id not in merged or sim > merged[node_id]["_sim"]:
                 merged[node_id] = {
@@ -229,7 +327,12 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
                     "_sim": sim,
                 }
 
-    eff_date = _parse_date(effective_at) or date.today()
+    # Respect LLM-proposed effective_at if present
+    try:
+        eff_override  # type: ignore[name-defined]
+        eff_date = _parse_date(eff_override or effective_at) or date.today()
+    except NameError:
+        eff_date = _parse_date(effective_at) or date.today()
     candidates = list(merged.values())
     filtered: List[Dict[str, Any]] = []
     for it in candidates:
