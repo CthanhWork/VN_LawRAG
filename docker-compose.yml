@@ -33,6 +33,7 @@ services:
     environment:
       - USE_LLM_QU=${USE_LLM_QU:-false}
       - QU_MODEL=${QU_MODEL:-gpt-4o-mini}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
       # OPENAI_API_KEY should be provided via .env or shell env, never commit it
     volumes:
       - chroma:/data/chroma
