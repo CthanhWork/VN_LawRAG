@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, Response
+﻿from flask import Flask, request, jsonify, Response
 import os
 import time
 import json
@@ -55,7 +55,7 @@ def _parse_date(value: str):
     """Parse various ISO-like date/datetime strings into a date object.
     Accepts:
       - YYYY-MM-DD
-      - YYYY-MM-DDTHH:MM[:SS][.mmm][Z|±HH:MM]
+      - YYYY-MM-DDTHH:MM[:SS][.mmm][Z|Â±HH:MM]
       - YYYY-MM-DD HH:MM[:SS]
     Returns None if unparsable.
     """
@@ -92,24 +92,24 @@ def _expand_queries(question: str) -> List[str]:
     # Polygamy / monogamy related
     poly_markers = [
         "hai vo", "ba vo", "nhieu vo", "da the", "lay 2 vo", "lay 3 vo",
-        "hai vợ", "ba vợ", "nhiều vợ", "đa thê", "lấy 2 vợ", "lấy 3 vợ",
+        "hai vá»£", "ba vá»£", "nhiá»u vá»£", "Ä‘a thÃª", "láº¥y 2 vá»£", "láº¥y 3 vá»£",
         "co the lay nhieu vo", "lay nhieu vo", "chong lay them vo",
     ]
-    if any(m in low for m in poly_markers) or ("vợ" in low and low.count("vợ") >= 2):
+    if any(m in low for m in poly_markers) or ("vá»£" in low and low.count("vá»£") >= 2):
         expansions.extend([
-            "chế độ một vợ, một chồng",
-            "cấm người đang có vợ hoặc có chồng kết hôn hoặc chung sống như vợ chồng với người khác",
-            "đang có vợ mà kết hôn với người khác có bị cấm không",
-            "hành vi vi phạm chế độ một vợ, một chồng",
-            "điều 2 luật hôn nhân và gia đình nguyên tắc",
-            "điều 5 luật hôn nhân và gia đình các hành vi bị cấm",
+            "cháº¿ Ä‘á»™ má»™t vá»£, má»™t chá»“ng",
+            "cáº¥m ngÆ°á»i Ä‘ang cÃ³ vá»£ hoáº·c cÃ³ chá»“ng káº¿t hÃ´n hoáº·c chung sá»‘ng nhÆ° vá»£ chá»“ng vá»›i ngÆ°á»i khÃ¡c",
+            "Ä‘ang cÃ³ vá»£ mÃ  káº¿t hÃ´n vá»›i ngÆ°á»i khÃ¡c cÃ³ bá»‹ cáº¥m khÃ´ng",
+            "hÃ nh vi vi pháº¡m cháº¿ Ä‘á»™ má»™t vá»£, má»™t chá»“ng",
+            "Ä‘iá»u 2 luáº­t hÃ´n nhÃ¢n vÃ  gia Ä‘Ã¬nh nguyÃªn táº¯c",
+            "Ä‘iá»u 5 luáº­t hÃ´n nhÃ¢n vÃ  gia Ä‘Ã¬nh cÃ¡c hÃ nh vi bá»‹ cáº¥m",
         ])
 
-    # Generic marriage-law expansions when question mentions vợ chồng/kết hôn
-    if any(x in low for x in ["kết hôn", "vo chong", "vợ chồng", "hôn nhân"]):
+    # Generic marriage-law expansions when question mentions vá»£ chá»“ng/káº¿t hÃ´n
+    if any(x in low for x in ["káº¿t hÃ´n", "vo chong", "vá»£ chá»“ng", "hÃ´n nhÃ¢n"]):
         expansions.extend([
-            "luật hôn nhân và gia đình quy định",
-            "điều kiện kết hôn luật hôn nhân và gia đình",
+            "luáº­t hÃ´n nhÃ¢n vÃ  gia Ä‘Ã¬nh quy Ä‘á»‹nh",
+            "Ä‘iá»u kiá»‡n káº¿t hÃ´n luáº­t hÃ´n nhÃ¢n vÃ  gia Ä‘Ã¬nh",
         ])
 
     # Deduplicate while keeping order
@@ -125,15 +125,15 @@ def _expand_queries(question: str) -> List[str]:
 def _boost_score(text: str, base: float) -> float:
     """Rule-based boosting for obviously relevant matches.
     Input base is similarity score in [0..1] (higher is better).
-    We boost when chunk contains decisive cues like 'một vợ, một chồng' or 'cấm ... đang có vợ'.
+    We boost when chunk contains decisive cues like 'má»™t vá»£, má»™t chá»“ng' or 'cáº¥m ... Ä‘ang cÃ³ vá»£'.
     """
     t = (text or "").lower()
     boost = 0.0
-    if "một vợ, một chồng" in t or "mot vo, mot chong" in t:
+    if "má»™t vá»£, má»™t chá»“ng" in t or "mot vo, mot chong" in t:
         boost += 0.08
-    if "cấm" in t and ("đang có vợ" in t or "dang co vo" in t or "đang có chồng" in t or "dang co chong" in t):
+    if "cáº¥m" in t and ("Ä‘ang cÃ³ vá»£" in t or "dang co vo" in t or "Ä‘ang cÃ³ chá»“ng" in t or "dang co chong" in t):
         boost += 0.06
-    if "chung sống như vợ chồng" in t or "chung song nhu vo chong" in t:
+    if "chung sá»‘ng nhÆ° vá»£ chá»“ng" in t or "chung song nhu vo chong" in t:
         boost += 0.04
     return min(1.0, base + boost)
 
@@ -180,9 +180,9 @@ def query_understanding_llm(question: str, effective_at: Optional[str] = None) -
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
         sys = (
-            "Bạn là bộ tiền xử lý câu hỏi pháp lý Việt Nam. "
-            "Chỉ chuẩn hóa truy vấn và trích xuất ràng buộc. "
-            "KHÔNG tạo nội dung pháp lý mới. Trả về JSON đúng schema."
+            "Báº¡n lÃ  bá»™ tiá»n xá»­ lÃ½ cÃ¢u há»i phÃ¡p lÃ½ Viá»‡t Nam. "
+            "Chá»‰ chuáº©n hÃ³a truy váº¥n vÃ  trÃ­ch xuáº¥t rÃ ng buá»™c. "
+            "KHÃ”NG táº¡o ná»™i dung phÃ¡p lÃ½ má»›i. Tráº£ vá» JSON Ä‘Ãºng schema."
         )
         user = {
             "question": question,
@@ -222,7 +222,7 @@ def retrieve(question: str, effective_at: str, k: int = 8):
             "law_code": "N/A",
             "node_path": "",
             "node_id": None,
-            "content": "Chưa khởi tạo mô hình/Chroma. Kiểm tra logs của container rag-service."
+            "content": "ChÆ°a khá»Ÿi táº¡o mÃ´ hÃ¬nh/Chroma. Kiá»ƒm tra logs cá»§a container rag-service."
         }]
 
     # Encode & query
@@ -265,7 +265,7 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             "law_code": "N/A",
             "node_path": "",
             "node_id": None,
-            "content": "Chưa khởi tạo mô hình/Chroma. Kiểm tra logs của container rag-service."
+            "content": "ChÆ°a khá»Ÿi táº¡o mÃ´ hÃ¬nh/Chroma. Kiá»ƒm tra logs cá»§a container rag-service."
         }]
 
     # Call optional LLM-based query understanding (safe to fail)
@@ -274,9 +274,9 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
     is_poly = False
     try:
         ql = (question or '').lower()
-        if re.search(r'\\b(\\d+)\\s*(v?|vo)\\b', ql) or any(w in ql for w in ['da th�','da the','nhi?u v?','nhieu vo','l?y th�m v?','lay them vo']):
+        if re.search(r'\\b(\\d+)\\s*(v?|vo)\\b', ql) or any(w in ql for w in ['da thê','da the','nhi?u v?','nhieu vo','l?y thêm v?','lay them vo']):
             is_poly = True
-        elif ('v?' in ql or 'vo' in ql) and re.search(r'\\b(m?t|mot|hai|ba|b?n|bon|nam|nam|s�u|sau|b?y|bay|t�m|tam|ch�n|chin|mu?i|muoi)\\s+(v?|vo)\\b', ql):
+        elif ('v?' in ql or 'vo' in ql) and re.search(r'\\b(m?t|mot|hai|ba|b?n|bon|nam|nam|sáu|sau|b?y|bay|tám|tam|chín|chin|mu?i|muoi)\\s+(v?|vo)\\b', ql):
             is_poly = True
     except Exception:
         is_poly = False
@@ -288,9 +288,9 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
     if is_poly:
         extra_queries = [
             'ch? d? m?t v?, m?t ch?ng',
-            'c?m ngu?i dang c� v? ho?c c� ch?ng k?t h�n ho?c chung s?ng nhu v? ch?ng v?i ngu?i kh�c',
-            'di?u 5 lu?t h�n nh�n v� gia d�nh c�c h�nh vi b? c?m',
-            'di?u 2 lu?t h�n nh�n v� gia d�nh nguy�n t?c',
+            'c?m ngu?i dang có v? ho?c có ch?ng k?t hôn ho?c chung s?ng nhu v? ch?ng v?i ngu?i khác',
+            'di?u 5 lu?t hôn nhân và gia dình các hành vi b? c?m',
+            'di?u 2 lu?t hôn nhân và gia dình nguyên t?c',
         ]
         try:
             qu_queries = (qu_queries or []) + extra_queries
@@ -298,9 +298,9 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             qu_queries = extra_queries
         try:
             if not qu_must:
-                qu_must = ['m?t v?, m?t ch?ng','c�c h�nh vi b? c?m','dang c� v?','dang c� ch?ng','chung s?ng nhu v? ch?ng']
+                qu_must = ['m?t v?, m?t ch?ng','các hành vi b? c?m','dang có v?','dang có ch?ng','chung s?ng nhu v? ch?ng']
         except NameError:
-            qu_must = ['m?t v?, m?t ch?ng','c�c h�nh vi b? c?m','dang c� v?','dang c� ch?ng','chung s?ng nhu v? ch?ng']
+            qu_must = ['m?t v?, m?t ch?ng','các hành vi b? c?m','dang có v?','dang có ch?ng','chung s?ng nhu v? ch?ng']
 
     eff_override = None
     if qu:
@@ -417,30 +417,30 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
 
 def synthesize_answer(question: str, effective_at: str, contexts: list):
     if not contexts:
-        return "Chưa có ngữ cảnh phù hợp trong cơ sở dữ liệu. Vui lòng chỉ rõ điều/khoản cần xem thêm."
+        return "ChÆ°a cÃ³ ngá»¯ cáº£nh phÃ¹ há»£p trong cÆ¡ sá»Ÿ dá»¯ liá»‡u. Vui lÃ²ng chá»‰ rÃµ Ä‘iá»u/khoáº£n cáº§n xem thÃªm."
     bullets = []
     for c in contexts[:3]:
         code = c.get('law_code') or 'N/A'
         path = c.get('node_path') or ''
         content = c.get('content') or ''
-        bullets.append(f"- {content} [Luật {code} - {path}]")
-    return "Trả lời rút gọn dựa trên trích dẫn:\n" + "\n".join(bullets)
+        bullets.append(f"- {content} [Luáº­t {code} - {path}]")
+    return "Tráº£ lá»i rÃºt gá»n dá»±a trÃªn trÃ­ch dáº«n:\n" + "\n".join(bullets)
 
 
 def synthesize_answer2(question: str, effective_at: str, contexts: list):
     if not contexts:
-        return "Chưa có ngữ cảnh phù hợp trong cơ sở dữ liệu. Vui lòng chỉ rõ điều/khoản cần xem thêm."
+        return "ChÆ°a cÃ³ ngá»¯ cáº£nh phÃ¹ há»£p trong cÆ¡ sá»Ÿ dá»¯ liá»‡u. Vui lÃ²ng chá»‰ rÃµ Ä‘iá»u/khoáº£n cáº§n xem thÃªm."
 
     ql = (question or "").lower()
     ctx_texts = [(c.get('content') or '').lower() for c in contexts]
 
     poly_q_markers = [
-        "hai vợ", "ba vợ", "đa thê", "nhiều vợ", "lấy 2 vợ", "lấy 3 vợ",
+        "hai vá»£", "ba vá»£", "Ä‘a thÃª", "nhiá»u vá»£", "láº¥y 2 vá»£", "láº¥y 3 vá»£",
         "hai vo", "ba vo", "da the", "nhieu vo", "lay 2 vo", "lay 3 vo",
     ]
-    is_poly_q = any(m in ql for m in poly_q_markers) or bool(re.search(r"\b(\d+)\s*(v?|vo)\b", ql)) or ("v?" in ql and ql.count("v?") >= 2) or bool(re.search(r"\b(m?t|mot|hai|ba|b?n|bon|nam|nam|s�u|sau|b?y|bay|t�m|tam|ch�n|chin|mu?i|muoi)\s+(v?|vo)\b", ql))
-    has_monogamy = any("một vợ, một chồng" in t or "mot vo, mot chong" in t for t in ctx_texts)
-    has_prohibit = any("cấm" in t and ("đang có vợ" in t or "dang co vo" in t or "đang có chồng" in t or "dang co chong" in t) for t in ctx_texts)
+    is_poly_q = any(m in ql for m in poly_q_markers) or bool(re.search(r"\b(\d+)\s*(v?|vo)\b", ql)) or ("v?" in ql and ql.count("v?") >= 2) or bool(re.search(r"\b(m?t|mot|hai|ba|b?n|bon|nam|nam|sáu|sau|b?y|bay|tám|tam|chín|chin|mu?i|muoi)\s+(v?|vo)\b", ql))
+    has_monogamy = any("má»™t vá»£, má»™t chá»“ng" in t or "mot vo, mot chong" in t for t in ctx_texts)
+    has_prohibit = any("cáº¥m" in t and ("Ä‘ang cÃ³ vá»£" in t or "dang co vo" in t or "Ä‘ang cÃ³ chá»“ng" in t or "dang co chong" in t) for t in ctx_texts)
 
     if is_poly_q and (has_monogamy or has_prohibit):
         bullets = []
@@ -448,11 +448,11 @@ def synthesize_answer2(question: str, effective_at: str, contexts: list):
             code = c.get('law_code') or 'N/A'
             path = c.get('node_path') or ''
             content = c.get('content') or ''
-            bullets.append(f"- {content} [Luật {code} - {path}]")
+            bullets.append(f"- {content} [Luáº­t {code} - {path}]")
         return (
-            "Không. Pháp luật Việt Nam áp dụng chế độ một vợ, một chồng; "
-            "cấm người đang có vợ hoặc có chồng kết hôn hoặc chung sống như vợ chồng với người khác.\n"
-            "Trích dẫn liên quan:\n" + "\n".join(bullets)
+            "KhÃ´ng. PhÃ¡p luáº­t Viá»‡t Nam Ã¡p dá»¥ng cháº¿ Ä‘á»™ má»™t vá»£, má»™t chá»“ng; "
+            "cáº¥m ngÆ°á»i Ä‘ang cÃ³ vá»£ hoáº·c cÃ³ chá»“ng káº¿t hÃ´n hoáº·c chung sá»‘ng nhÆ° vá»£ chá»“ng vá»›i ngÆ°á»i khÃ¡c.\n"
+            "TrÃ­ch dáº«n liÃªn quan:\n" + "\n".join(bullets)
         )
 
     bullets = []
@@ -460,8 +460,8 @@ def synthesize_answer2(question: str, effective_at: str, contexts: list):
         code = c.get('law_code') or 'N/A'
         path = c.get('node_path') or ''
         content = c.get('content') or ''
-        bullets.append(f"- {content} [Luật {code} - {path}]")
-    return "Trả lời rút gọn dựa trên trích dẫn:\n" + "\n".join(bullets)
+        bullets.append(f"- {content} [Luáº­t {code} - {path}]")
+    return "Tráº£ lá»i rÃºt gá»n dá»±a trÃªn trÃ­ch dáº«n:\n" + "\n".join(bullets)
 
 @app.get("/health")
 def health():
@@ -483,14 +483,14 @@ def qa():
         body = request.get_json(force=True)
         q = (body.get("question") or "").strip()
         if not q:
-            return jsonify({"error": "Thiếu 'question'"}), 400
+            return jsonify({"error": "Thiáº¿u 'question'"}), 400
         t_raw = body.get("effective_at")
         t_date = _parse_date(t_raw) or date.today()
         t = t_date.isoformat()
         k = int(body.get("options", {}).get("k", 8))
 
         if not ensure_inited():
-            return jsonify({"error": f"RAG chưa sẵn sàng: {init_error}"}), 503
+            return jsonify({"error": f"RAG chÆ°a sáºµn sÃ ng: {init_error}"}), 503
 
         ctx = retrieve2(q, t, k=k)
         answer = synthesize_answer2(q, t, ctx)
@@ -507,7 +507,7 @@ def gen():
         body = request.get_json(force=True)
         q = (body.get("question") or "").strip()
         if not q:
-            return jsonify({"error": "Thiếu 'question'"}), 400
+            return jsonify({"error": "Thiáº¿u 'question'"}), 400
         t_raw = body.get("effective_at")
         t_date = _parse_date(t_raw) or date.today()
         t = t_date.isoformat()
@@ -515,7 +515,7 @@ def gen():
         # max_tokens, temperature are accepted but unused in this demo
 
         if not ensure_inited():
-            return jsonify({"error": f"RAG chưa sẵn sàng: {init_error}"}), 503
+            return jsonify({"error": f"RAG chÆ°a sáºµn sÃ ng: {init_error}"}), 503
 
         ctx = retrieve2(q, t, k=k)
         answer = synthesize_answer2(q, t, ctx)
@@ -554,5 +554,6 @@ if __name__ == "__main__":
     host = os.getenv("RAG_HOST", "0.0.0.0")
     port = int(os.getenv("RAG_PORT", "5001"))
     app.run(host=host, port=port)
+
 
 
