@@ -1,0 +1,107 @@
+﻿{
+    "concepts":  [
+                     {
+                         "name":  "monogamy",
+                         "triggers":  [
+                                          "mot vo mot chong",
+                                          "che do mot vo",
+                                          "da the",
+                                          "da phu",
+                                          "lay 2 vo",
+                                          "lay 3 vo",
+                                          "lay 4 vo",
+                                          "lay 5 vo",
+                                          "lay nhieu vo",
+                                          "lay nhieu chong",
+                                          "lay them vo",
+                                          "lay them chong",
+                                          "them vo",
+                                          "them chong",
+                                          "co the lay nhieu vo",
+                                          "ket hon lan 2",
+                                          "ket hon lan 3",
+                                          "dang co vo ma ket hon",
+                                          "dang co chong ma ket hon",
+                                          "bigamy",
+                                          "polygamy"
+                                      ],
+                         "subqueries":  [
+                                            "che do mot vo mot chong",
+                                            "cac hanh vi bi cam trong dieu 5 luat hon nhan va gia dinh",
+                                            "dieu 2 luat hon nhan va gia dinh nguyen tac hon nhan"
+                                        ],
+                         "must_phrases":  [
+                                              "mot vo mot chong",
+                                              "cac hanh vi bi cam",
+                                              "dang co vo",
+                                              "dang co chong",
+                                              "chung song nhu vo chong"
+                                          ],
+                         "law_codes":  [
+                                           "121/VBHN-VPQH",
+                                           "126/2014/ND-CP"
+                                       ],
+                         "intent":  "YES_NO"
+                 },
+                 {
+                     "name":  "adultery_affair",
+                     "triggers":  [
+                                      "ngoai tinh",
+                                      "nguoi tinh",
+                                      "phan boi",
+                                      "khong chung thuy",
+                                      "chung thuy",
+                                      "chung song nhu vo chong",
+                                      "song nhu vo chong",
+                                      "quan he ngoai hon nhan",
+                                      "quan he voi nguoi khac",
+                                      "vo toi co nguoi tinh",
+                                      "chong toi co nguoi tinh"
+                                  ],
+                     "subqueries":  [
+                                        "dieu 5 luat hon nhan va gia dinh cac hanh vi bi cam",
+                                        "che do mot vo mot chong",
+                                        "nguoi dang co vo hoac co chong chung song nhu vo chong voi nguoi khac co bi cam khong",
+                                        "dieu 19 luat hon nhan va gia dinh nghia vu cua vo chong",
+                                        "nghia vu vo chong luat hon nhan va gia dinh"
+                                    ],
+                     "must_phrases":  [
+                                          "mot vo mot chong",
+                                          "cac hanh vi bi cam",
+                                          "chung song nhu vo chong",
+                                          "dang co vo",
+                                          "dang co chong",
+                                          "chung thuy",
+                                          "nghia vu vo chong"
+                                      ],
+                     "law_codes":  [
+                                       "121/VBHN-VPQH"
+                                     ],
+                     "intent":  "OTHER"
+                 },
+                     {
+                         "name":  "marriage_conditions",
+                         "triggers":  [
+                                          "dang ky ket hon",
+                                          "dieu kien ket hon",
+                                          "ket hon bao nhieu tuoi",
+                                          "17 tuoi ket hon",
+                                          "20 tuoi ket hon",
+                                          "tuoi ket hon"
+                                      ],
+                         "subqueries":  [
+                                            "dieu 8 luat hon nhan va gia dinh dieu kien ket hon",
+                                            "dieu kien ket hon luat hon nhan va gia dinh"
+                                        ],
+                         "must_phrases":  [
+                                              "dieu kien ket hon",
+                                              "nam tu du 20",
+                                              "nu tu du 18"
+                                          ],
+                         "law_codes":  [
+                                           "121/VBHN-VPQH"
+                                       ],
+                         "intent":  "YES_NO"
+                     }
+                 ]
+}

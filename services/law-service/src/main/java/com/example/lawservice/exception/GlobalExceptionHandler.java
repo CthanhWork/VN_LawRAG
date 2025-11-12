@@ -1,45 +1,66 @@
 package com.example.lawservice.exception;
 
-import lombok.Data;
+import com.example.lawservice.enums.StatusCode;
+import com.example.lawservice.payload.ApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import jakarta.persistence.EntityNotFoundException;
-import java.time.LocalDateTime;
 
 @ControllerAdvice
-public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(CustomException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCustom(CustomException ex) {
+        log.error("CustomException: {}", ex.getMessage());
+        HttpStatus status = mapStatus(ex.getErrorCode());
+        return new ResponseEntity<>(ApiResponse.of(ex.getErrorCode().getCode(), ex.getMessage(), null), status);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
+        log.info("Validation error: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.of(StatusCode.VALIDATION_ERROR.getCode(),
+                StatusCode.VALIDATION_ERROR.getMessage(), null), HttpStatus.BAD_REQUEST);
+    }
 
     @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiError> handleEntityNotFound(EntityNotFoundException ex) {
-        ApiError error = new ApiError(
-            HttpStatus.NOT_FOUND.value(),
-            "Resource not found",
-            ex.getMessage(),
-            LocalDateTime.now()
-        );
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    public ResponseEntity<ApiResponse<Void>> handleEntityNotFound(EntityNotFoundException ex) {
+        log.info("Entity not found: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.of(StatusCode.NOT_FOUND.getCode(), StatusCode.NOT_FOUND.getMessage(), null),
+                HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.info("Illegal argument: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.of(StatusCode.VALIDATION_ERROR.getCode(), ex.getMessage(), null),
+                HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleAll(Exception ex) {
-        ApiError error = new ApiError(
-            HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            "Internal server error",
-            ex.getMessage(),
-            LocalDateTime.now()
-        );
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<ApiResponse<Void>> handleAll(Exception ex) {
+        log.error("Unexpected error", ex);
+        return new ResponseEntity<>(ApiResponse.of(StatusCode.INTERNAL_SERVER_ERROR.getCode(),
+                StatusCode.INTERNAL_SERVER_ERROR.getMessage(), null), HttpStatus.INTERNAL_SERVER_ERROR);
     }
-    
-    @Data
-    public static class ApiError {
-        private final int status;
-        private final String error;
-        private final String message;
-        private final LocalDateTime timestamp;
+
+    private HttpStatus mapStatus(StatusCode code) {
+        return switch (code) {
+            case OK -> HttpStatus.OK;
+            case CREATED -> HttpStatus.CREATED;
+            case ACCEPTED -> HttpStatus.ACCEPTED;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case CONFLICT -> HttpStatus.CONFLICT;
+            case VALIDATION_ERROR -> HttpStatus.BAD_REQUEST;
+            default -> HttpStatus.BAD_REQUEST;
+        };
     }
 }

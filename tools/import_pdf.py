@@ -45,46 +45,63 @@ from typing import List, Tuple, Optional
 import pymysql
 
 
-def read_pdf_text(path: str) -> str:
-    """Extract text from a PDF using PyPDF2; fallback to pdfminer.six if available.
+def read_pdf_text(path: str, prefer_pdfminer: bool = False) -> str:
+    """Extract text from a PDF.
+    - If prefer_pdfminer is True, try pdfminer.six first, then fall back to PyPDF2.
+    - Otherwise, try PyPDF2 first, then fall back to pdfminer.six.
     Returns a UTF-8 string with newlines preserved as best effort.
     """
     text = None
-    try:
-        from PyPDF2 import PdfReader  # type: ignore
-        reader = PdfReader(path)
-        chunks = []
-        for page in reader.pages:
-            t = page.extract_text() or ""
-            chunks.append(t)
-        text = "\n\n".join(chunks)
-    except Exception as e:
-        sys.stderr.write(f"[warn] PyPDF2 failed: {e}\n")
+
+    def _pypdf2_extract(p: str) -> Optional[str]:
+        try:
+            from PyPDF2 import PdfReader  # type: ignore
+            reader = PdfReader(p)
+            chunks = []
+            for page in reader.pages:
+                t = page.extract_text() or ""
+                chunks.append(t)
+            return "\n\n".join(chunks)
+        except Exception as e:
+            sys.stderr.write(f"[warn] PyPDF2 failed: {e}\n")
+            return None
+
+    def _pdfminer_extract(p: str) -> Optional[str]:
+        try:
+            from pdfminer.high_level import extract_text  # type: ignore
+            return extract_text(p)
+        except Exception as e:
+            sys.stderr.write(f"[warn] pdfminer failed: {e}\n")
+            return None
+
+    # Try in selected order
+    if prefer_pdfminer:
+        text = _pdfminer_extract(path) or _pypdf2_extract(path)
+    else:
+        text = _pypdf2_extract(path) or _pdfminer_extract(path)
 
     if text and text.strip():
         return text
 
-    # Fallback to pdfminer if installed
-    try:
-        from pdfminer.high_level import extract_text  # type: ignore
-        text = extract_text(path)
-    except Exception as e:
-        sys.stderr.write(
-            "[error] Cannot extract text. Install one of: PyPDF2 or pdfminer.six\n"
-            f"  pip install PyPDF2\n  pip install pdfminer.six\nDetail: {e}\n"
-        )
-        sys.exit(2)
-    return text or ""
+    sys.stderr.write(
+        "[error] Cannot extract text. Install one of: PyPDF2 or pdfminer.six\n"
+        "  pip install PyPDF2\n  pip install pdfminer.six\n"
+    )
+    sys.exit(2)
 
 
 def normalize_lines(text: str) -> List[str]:
-    """Basic cleanup: normalize whitespace, split into lines, drop leading/trailing empty clusters."""
+    """Basic cleanup: normalize whitespace, split into lines, drop leading/trailing empty clusters.
+    Also trims spaces before punctuation to mitigate common PDF extraction artifacts.
+    """
     # Normalize Windows CRLF and multiple spaces
     t = text.replace("\r\n", "\n").replace("\r", "\n")
     # Collapse 3+ newlines into 2 to avoid huge gaps
     t = re.sub(r"\n{3,}", "\n\n", t)
-    # Trim trailing spaces per line
+    # Trim trailing spaces per line and collapse multi-spaces
     lines = [re.sub(r"\s+", " ", ln).strip() for ln in t.split("\n")]
+    # Remove spaces before common punctuation
+    lines = [re.sub(r"\s+([,.;:!?])", r"\1", ln) for ln in lines]
     # Remove leading/trailing empty lines
     while lines and not lines[0]:
         lines.pop(0)
@@ -98,6 +115,16 @@ _RE_KHOAN = re.compile(r"^(Khoản|KHOAN)\s+(\d{1,2})(?:\.|:)?\s*(.*)$", re.IGNO
 _RE_STT = re.compile(r"^(\d{1,2})\.(.*)$")  # e.g., "1. ..." as Khoản
 _RE_CHUONG = re.compile(r"^(Chương|CHUONG)\s+([IVXLCDM]+|\d{1,3})(?:\.|:)?\s*(.*)$", re.IGNORECASE)
 
+
+# Override regexes with diacritic-tolerant patterns (redefine after initial declarations)
+_RE_DIEU = re.compile(r"^(Điều|DIEU|Dieu)\s+([IVXLCDM]+|\d{1,3})[\.:]?\s*(.*)$", re.IGNORECASE | re.UNICODE)
+_RE_KHOAN = re.compile(r"^(Khoản|KHOAN|Khoan)\s+(\d{1,2})[\.:]?\s*(.*)$", re.IGNORECASE | re.UNICODE)
+_RE_STT = re.compile(r"^(\d{1,2})[\.)]\s*(.*)$")
+_RE_CHUONG = re.compile(r"^(Chương|CHUONG|Chuong)\s+([IVXLCDM]+|\d{1,3})[\.:]?\s*(.*)$", re.IGNORECASE | re.UNICODE)
+
+# Điểm patterns (allow optional leading dash and optional ')' after word form)
+_RE_DIEM_WORD = re.compile(r"^(Điểm|DIEM|Diem)\s+([a-zA-ZđĐ])\)?\s*(.*)$")
+_RE_DIEM_LETTER = re.compile(r"^[\-•]?\s*([a-zA-ZđĐ])\)\s+(.*)$")
 
 class Khoan:
     def __init__(self, number: str):
@@ -250,8 +277,8 @@ def parse_structure(lines: List[str]) -> Tuple[List[Chuong], List[Dieu]]:
 def infer_code_from_filename(path: str) -> str:
     name = os.path.basename(path)
     name = re.sub(r"\.pdf$", "", name, flags=re.IGNORECASE)
-    # e.g., 121-vbhn-vpqh -> 121/VBHN-VPQH
-    parts = re.split(r"[_\-]+", name)
+    # e.g., "121-vbhn-vpqh" or "cach thi hanh luat" -> tokens
+    parts = re.split(r"[\s_\-]+", name)
     parts = [p.upper() for p in parts if p]
     return "/".join(parts)
 
@@ -452,6 +479,7 @@ def main():
     ap.add_argument("--doc-type", dest="doc_type", choices=["LAW", "DECREE"], default=None, help="Document type: LAW or DECREE")
     ap.add_argument("--related-law-code", dest="related_law_code", help="Code of the law this document is related to (e.g., 52/2014/QH13)")
     ap.add_argument("--dry-run", action="store_true", help="Parse only, do not write to DB")
+    ap.add_argument("--prefer-pdfminer", action="store_true", help="Prefer pdfminer.six over PyPDF2 for text extraction")
 
     ap.add_argument("--db-host", default=os.getenv("DB_HOST") or "localhost")
     ap.add_argument("--db-port", type=int, default=int(os.getenv("DB_PORT") or 3307))
@@ -461,11 +489,26 @@ def main():
 
     args = ap.parse_args()
 
+    # Heuristic: if doc-type is not provided, infer from filename keywords
+    if not args.doc_type:
+        fname = os.path.basename(args.file).lower()
+        if "nghi" in fname or "nghidinh" in fname or "nghi-dinh" in fname or "nghi_dinh" in fname:
+            args.doc_type = "DECREE"
+        else:
+            args.doc_type = "LAW"
+
+    # Provide sensible defaults for decrees if not set
+    if args.doc_type == "DECREE":
+        if not args.related_law_code:
+            args.related_law_code = os.getenv("RELATED_LAW_CODE", "52/2014/QH13")
+        if not args.effective_start:
+            args.effective_start = os.getenv("DECREE_EFFECTIVE_START", "2015-01-01")
+
     if not os.path.isfile(args.file):
         sys.stderr.write(f"File not found: {args.file}\n")
         sys.exit(1)
 
-    raw_text = read_pdf_text(args.file)
+    raw_text = read_pdf_text(args.file, prefer_pdfminer=args.prefer_pdfminer)
     lines = normalize_lines(raw_text)
 
     # Infer title if not provided: pick first non-empty line that looks like a heading

@@ -32,17 +32,47 @@ services:
       - .env
     environment:
       - USE_LLM_QU=${USE_LLM_QU:-false}
-      - QU_MODEL=${QU_MODEL:-gpt-4o-mini}
+      - QU_MODEL=${QU_MODEL:-gemini-1.5-flash}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
-      # OPENAI_API_KEY should be provided via .env or shell env, never commit it
+      - DOMAIN_PATTERNS_PATH=/app/domain_patterns.json
+      - LLM_DEBUG=${LLM_DEBUG:-false}
+      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-*}
+      # GEMINI_API_KEY should be provided via .env or shell env (do not commit)
     volumes:
       - chroma:/data/chroma
+      - ./tools:/app/tools
+      - ./services/rag-service/domain_patterns.json:/app/domain_patterns.json:ro
     ports:
       - "5001:5001"
     depends_on:
       - chroma
       - redis
       - mysql
+  
+  seed-pdfs:
+    build: ./services/rag-service
+    command: ["bash", "-lc", "/app/tools/seed_pdfs.sh"]
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=laws  
+      - DB_USER=app
+      - DB_PASS=app
+      - CHROMA_PATH=/data/chroma
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+      - RESET_EMBED=1
+    volumes:
+      - chroma:/data/chroma
+      - ./tools:/app/tools
+      - ./:/seed:ro
+    depends_on:
+      mysql:
+        condition: service_started
+      chroma:
+        condition: service_started
+      law-service:
+        condition: service_healthy
+    restart: "no"
 
   law-service:
     build: ./services/law-service
@@ -51,8 +81,10 @@ services:
       - SPRING_DATASOURCE_USERNAME=app
       - SPRING_DATASOURCE_PASSWORD=app
       - RAG_SERVICE_URL=http://rag-service:5001
+      # Flyway must coexist with social-service tables in same DB
+      # Baseline at version 0 so V1+ migrations still run even if schema non-empty
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
-      - SPRING_FLYWAY_BASELINE_VERSION=4
+      - SPRING_FLYWAY_BASELINE_VERSION=0
     depends_on:
       - mysql
       - rag-service
@@ -64,6 +96,18 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  social-service:
+    build: ./services/social-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/laws?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=app
+      - SPRING_DATASOURCE_PASSWORD=app
+    depends_on:
+      - mysql
+      - redis
+    ports:
+      - "8082:8082"
 
 volumes:
   dbdata:

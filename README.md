@@ -1,4 +1,4 @@
-# VN Law RAG Starter
+﻿# VN Law RAG Starter
 
 Hệ thống demo gồm 2 dịch vụ chính và hạ tầng đi kèm:
 
@@ -113,6 +113,14 @@ docker compose cp tools/embed_laws.py rag-service:/app/embed_laws.py
 docker compose exec rag-service bash -lc "DB_HOST=mysql DB_PORT=3306 DB_NAME=laws DB_USER=app DB_PASS=app CHROMA_PATH=/data/chroma python /app/embed_laws.py"
 ```
 
+## Cấu hình & kiểm tra Gemini LLM
+- Thiết lập `GEMINI_API_KEY` trong `.env` (xem `.env.example`) và giữ `QU_MODEL=gemini-1.5-flash` hoặc model tương thích.
+- Bật/tắt Query Understanding qua `USE_LLM_QU=true|false`; cả `/qa/analyze` vẫn dùng Gemini nếu có khóa để đưa ra phán quyết.
+- Khởi chạy lại `rag-service` sau khi thay đổi khóa hoặc model để `google-generativeai` nhận cấu hình mới.
+- Kiểm tra nhanh: `Invoke-RestMethod "http://localhost:5001/llm/status"` (trả về `ready`, `provider`, `has_api_key`, ...).
+- Kiểm tra sâu (gửi 1 yêu cầu thực tế tới Gemini): `Invoke-RestMethod "http://localhost:5001/llm/status?live=true"` – chỉ chạy khi bạn muốn xác nhận khóa hợp lệ; sẽ trả HTTP 503 nếu lỗi.
+- Ghi log yêu cầu/đáp ứng LLM bằng `LLM_DEBUG=true` và `LLM_LOG_SLICE=4000` (giới hạn ký tự log).
+
 ### Bổ sung Nghị định (decrees) cho Luật HN&GĐ
 - Schema hỗ trợ `doc_type` (LAW/DECREE) và liên kết `related_law_id` để gắn nghị định với luật cơ sở (ví dụ 52/2014/QH13).
 - Dùng `tools/import_pdf.py` với `--doc-type DECREE --related-law-code 52/2014/QH13` để nhập nghị định.
@@ -170,4 +178,12 @@ docker compose exec rag-service bash -lc "DB_HOST=mysql DB_PORT=3306 DB_NAME=law
   ```
 
 Cấu hình mặc định đã trỏ tới `localhost:3307` (MySQL) và `localhost:5001` (RAG) cho chế độ local.
+
+
+## External AI Analyzer Workflow (draft)
+- G?i m� t? t�nh hu?ng d�i l�n LLM ngo�i (OpenAI, Claude, Gemini...) d? tr�ch s? ki?n ch�nh.
+- D?a k?t qu? tr�ch k?t h?p patterns (services/rag-service/domain_patterns.json) d? d?nh d?ng h�nh vi v� g?i � di?u lu?t.
+- V?i m?i h�nh vi, sinh truy v?n chu?n, g?i RAG (retrieve2) d? l?y tr�ch d?n.
+- �ua ng? c?nh v�o LLM (open-book) d? k?t lu?n VIOLATION | NO_VIOLATION | UNCERTAIN k�m gi?i th�ch v� citation.
+- Xem skeleton: services/rag-service/external_analyzer.py, API tham chi?u: POST /analyze.
 

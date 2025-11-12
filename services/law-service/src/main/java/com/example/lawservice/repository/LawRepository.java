@@ -28,4 +28,8 @@ public interface LawRepository extends JpaRepository<Law, Long> {
     default List<Law> findSuggestions(String keyword, int limit) {
         return findSuggestions(keyword, PageRequest.of(0, limit));
     }
+
+    java.util.List<Law> findByRelatedLaw_Id(Long relatedLawId);
+
+    java.util.List<Law> findByRelatedLaw_IdAndDocTypeIgnoreCase(Long relatedLawId, String docType);
 }

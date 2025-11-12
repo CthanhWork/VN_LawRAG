@@ -25,7 +25,8 @@ public class RagClient {
     private static final Logger log = LoggerFactory.getLogger(RagClient.class);
     private static final String QA_PATH = "/qa";
     private static final String GEN_PATH = "/gen";
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    private static final String ANALYZE_PATH = "/analyze";
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(90);
 
     private final WebClient webClient;
     private final LawNodeRepository lawNodeRepository;
@@ -152,6 +153,56 @@ public class RagClient {
         }
     }
 
+    public com.example.lawservice.dto.QaAnalyzeResponse analyze(String question, LocalDate effectiveAt, Integer k) {
+        if (question == null || question.isBlank()) {
+            throw new IllegalArgumentException("question must not be blank");
+        }
+        LocalDate effectiveDate = Optional.ofNullable(effectiveAt).orElse(LocalDate.now());
+        int topK = Optional.ofNullable(k).orElse(8);
+        try {
+            AnalyzeRequest payload = new AnalyzeRequest(question, effectiveDate.toString(), new AnalyzeOptions(topK));
+            AnalyzeResult resp = webClient.post()
+                .uri(ANALYZE_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(payload)
+                .retrieve()
+                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse ->
+                    clientResponse.bodyToMono(String.class).map(body ->
+                        new RuntimeException("RAG /analyze error (" + clientResponse.statusCode() + "): " + body)
+                    )
+                )
+                .bodyToMono(AnalyzeResult.class)
+                .block(REQUEST_TIMEOUT);
+
+            if (resp == null) {
+                throw new RuntimeException("Empty response from RAG /analyze");
+            }
+
+            java.util.List<com.example.lawservice.dto.QaAnalyzeResponse.Citation> citations = Optional.ofNullable(resp.citations)
+                .orElseGet(Collections::emptyList)
+                .stream()
+                .map(c -> com.example.lawservice.dto.QaAnalyzeResponse.Citation.builder()
+                    .lawCode(c.lawCode)
+                    .nodePath(c.nodePath)
+                    .nodeId(c.nodeId)
+                    .build())
+                .collect(java.util.stream.Collectors.toList());
+
+            return com.example.lawservice.dto.QaAnalyzeResponse.builder()
+                .decision(resp.decision)
+                .explanation(resp.explanation)
+                .citations(citations)
+                .effectiveAt(effectiveDate)
+                .build();
+        } catch (WebClientResponseException e) {
+            log.error("RAG /analyze HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw e;
+        } catch (Exception e) {
+            log.error("RAG /analyze call failed", e);
+            throw new RuntimeException("Failed to call RAG /analyze", e);
+        }
+    }
+
     // Request/Response DTOs for the RAG service
     private record RagServiceRequest(
         @JsonProperty("question") String question,
@@ -208,6 +259,28 @@ public class RagClient {
         @JsonProperty("used_nodes")
         @JsonAlias("usedNodes")
         public java.util.List<Long> usedNodes;
+    }
+
+    // DTOs for /analyze
+    private record AnalyzeRequest(
+        @JsonProperty("question") String question,
+        @JsonProperty("effective_at") String effectiveAt,
+        @JsonProperty("options") AnalyzeOptions options
+    ) {}
+
+    private record AnalyzeOptions(
+        @JsonProperty("k") int k
+    ) {}
+
+    private static class AnalyzeResult {
+        @JsonProperty("decision")
+        public String decision;
+
+        @JsonProperty("explanation")
+        public String explanation;
+
+        @JsonProperty("citations")
+        public java.util.List<RagCitation> citations;
     }
 
     private static class RagCitation {

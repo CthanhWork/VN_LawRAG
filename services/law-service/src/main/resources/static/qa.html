@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VN Law RAG — QA Demo</title>
+  <style>
+    :root {
+      --bg: #0f172a; /* slate-900 */
+      --panel: #111827cc; /* slate-900/80 */
+      --text: #e5e7eb; /* slate-200 */
+      --muted: #94a3b8; /* slate-400 */
+      --accent: #22d3ee; /* cyan-400 */
+      --accent-2: #38bdf8; /* sky-400 */
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --card: #0b1220; /* darker */
+      --border: #1f2937; /* slate-800 */
+      --code: #111827; /* slate-900 */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font: 15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+      color: var(--text); background: radial-gradient(1200px 600px at 10% -10%, #0ea5e980, transparent),
+                           radial-gradient(1000px 500px at 110% -20%, #22d3ee40, transparent), var(--bg);
+    }
+    header {
+      padding: 28px 20px; text-align: center;
+    }
+    header h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: .3px; }
+    header p { margin: 0; color: var(--muted); }
+    main { max-width: 980px; margin: 0 auto; padding: 16px; }
+    .panel {
+      background: var(--panel); backdrop-filter: blur(8px);
+      border: 1px solid var(--border); border-radius: 14px; padding: 18px;
+      box-shadow: 0 10px 30px #00000055;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .row + .row { margin-top: 12px; }
+    label { display:block; font-weight:600; margin-bottom: 6px; color: var(--muted); }
+    textarea, input[type="date"] {
+      width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 12px 12px;
+      background: var(--card); color: var(--text); outline: none;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .actions { display:flex; align-items:center; gap:12px; margin-top:12px; }
+    button {
+      border: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #003044;
+      font-weight: 700; padding: 10px 16px; border-radius: 999px; cursor: pointer;
+      box-shadow: 0 6px 16px #22d3ee55; transition: transform .08s ease;
+    }
+    button:active { transform: translateY(1px); }
+    .muted { color: var(--muted); font-size: 13px; }
+    .result { margin-top: 18px; display:grid; gap: 12px; }
+    .card { border:1px solid var(--border); border-radius:12px; padding:14px; background: var(--card); }
+    .answer { white-space: pre-wrap; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; color:#02232c; background:#67e8f9; margin-right:6px; }
+    details { border:1px solid var(--border); border-radius:10px; padding:10px 12px; background: #0c1527; }
+    summary { cursor: pointer; font-weight:600; color:#c7d2fe; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .kv { display:flex; flex-wrap:wrap; gap:10px; font-size: 13px; color: var(--muted); }
+    .kv div { background:#0b1425; border:1px solid var(--border); border-radius:8px; padding:4px 8px; }
+    .error { color: #fecaca; background:#7f1d1d; border:1px solid #ef4444; padding:10px; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>VN Law RAG — Demo QA</h1>
+    <p>Gọi <code>/api/qa</code> (text/plain) qua law-service và hiển thị trích dẫn.</p>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="row">
+        <div>
+          <label for="q">Câu hỏi</label>
+          <textarea id="q" placeholder="Ví dụ: điều kiện kết hôn là gì?"></textarea>
+        </div>
+        <div>
+          <label for="t">Ngày hiệu lực (tùy chọn)</label>
+          <input id="t" type="date" />
+          <div class="muted" style="margin-top:8px">Nếu bỏ trống, hệ thống dùng ngày hiện tại.</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="ask">Hỏi /api/qa</button>
+        <span id="status" class="muted"></span>
+      </div>
+      <div id="error" class="error" style="display:none"></div>
+      <div class="result">
+        <div class="card">
+          <div class="pill">Answer</div>
+          <div id="answer" class="answer">—</div>
+        </div>
+        <div class="card">
+          <div class="pill">Context</div>
+          <div id="contexts">—</div>
+        </div>
+        <div class="card">
+          <div class="pill">Raw JSON</div>
+          <pre id="raw" style="margin:0; white-space:pre-wrap"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const el = (id) => document.getElementById(id);
+    const fmt = (s) => (s ?? '').toString();
+    const today = new Date().toISOString().slice(0,10);
+    el('t').value = today;
+
+    async function callQA(question, eff) {
+      const qs = new URLSearchParams();
+      if (eff) qs.set('effectiveAt', eff);
+      const url = `/api/qa${qs.toString() ? ('?' + qs.toString()) : ''}`;
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: question });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return await res.json();
+    }
+
+    function renderContexts(list) {
+      if (!list || !list.length) return '<div class="muted">Không có ngữ cảnh.</div>';
+      return list.map((c, i) => {
+        const head = `${fmt(c.lawCode) || 'N/A'} — ${fmt(c.nodePath) || ''}`;
+        const nid = c.nodeId != null ? `#${c.nodeId}` : '';
+        const content = fmt(c.content);
+        return `<details ${i<3 ? 'open' : ''}><summary>${head} ${nid}</summary><div style="margin-top:8px; white-space:pre-wrap">${content}</div></details>`;
+      }).join('\n');
+    }
+
+    el('ask').addEventListener('click', async () => {
+      const q = el('q').value.trim();
+      const t = el('t').value.trim();
+      el('error').style.display = 'none';
+      el('status').textContent = 'Đang gửi…';
+      el('answer').textContent = '—';
+      el('contexts').innerHTML = '—';
+      el('raw').textContent = '';
+      try {
+        if (!q) { throw new Error('Vui lòng nhập câu hỏi.'); }
+        const data = await callQA(q, t);
+        el('answer').textContent = fmt(data.answer);
+        el('contexts').innerHTML = renderContexts(data.context);
+        el('raw').textContent = JSON.stringify(data, null, 2);
+        el('status').textContent = 'Hoàn tất';
+      } catch (e) {
+        el('status').textContent = '';
+        el('error').textContent = 'Lỗi: ' + (e?.message || e);
+        el('error').style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
+

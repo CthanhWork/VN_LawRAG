@@ -35,11 +35,13 @@ public class LawController {
     }
 
     @GetMapping
+    @Operation(summary = "List all laws")
     public List<Law> getAll() {
         return lawRepository.findAll();
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get a law by ID")
     public ResponseEntity<Law> getById(@PathVariable Long id) {
         return lawRepository.findById(id)
                 .map(ResponseEntity::ok)
@@ -91,6 +93,24 @@ public class LawController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(toc);
+    }
+
+    @GetMapping("/{id}/related")
+    @Operation(summary = "Get laws related to the given base law (e.g., decrees guiding a law)")
+    public ResponseEntity<List<Law>> getRelated(
+            @PathVariable Long id,
+            @RequestParam(value = "docType", required = false) String docType
+    ) {
+        if (!lawRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        List<Law> items;
+        if (docType != null && !docType.isBlank()) {
+            items = lawRepository.findByRelatedLaw_IdAndDocTypeIgnoreCase(id, docType);
+        } else {
+            items = lawRepository.findByRelatedLaw_Id(id);
+        }
+        return ResponseEntity.ok(items);
     }
 
     private TocDTO toToc(LawNode node, Map<Long, List<LawNode>> byParentId) {
