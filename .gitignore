@@ -29,3 +29,6 @@ docs/
 venv/
 **/.venv/
 **/venv/
+
+# Java build outputs (social-service)
+services/social-service/target/
