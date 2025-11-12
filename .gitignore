@@ -23,3 +23,9 @@ docs/
 .env.local
 *.env
 !.env.example
+
+# Python virtual environments
+.venv/
+venv/
+**/.venv/
+**/venv/
