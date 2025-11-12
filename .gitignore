@@ -30,5 +30,8 @@ venv/
 **/.venv/
 **/venv/
 
+# App uploads (user-generated media)
+uploads/
+
 # Java build outputs (social-service)
 services/social-service/target/
