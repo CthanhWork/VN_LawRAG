@@ -1,5 +1,6 @@
 package com.example.socialservice.controller;
 
+import com.example.socialservice.dto.PostCreateForm;
 import com.example.socialservice.dto.PostResponse;
 import com.example.socialservice.enums.StatusCode;
 import com.example.socialservice.exception.CustomException;
@@ -7,12 +8,13 @@ import com.example.socialservice.payload.ApiResponse;
 import com.example.socialservice.service.JwtService;
 import com.example.socialservice.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.ModelAttribute;
 
 @RestController
 @RequestMapping("/api/social/posts")
@@ -27,14 +29,14 @@ public class PostController {
     }
 
     @PostMapping(consumes = { "multipart/form-data" })
-    @Operation(summary = "Tạo bài viết (multipart)", description = "Trường form: content, files[]. Lấy userId từ JWT Bearer token (không truyền authorId).")
+    @Operation(summary = "Tạo bài viết (multipart)", description = "Form: content, files[]; userId lấy từ JWT Bearer token.")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<PostResponse>> create(
-            @RequestParam(value = "content", required = false) String content,
-            @RequestParam(value = "files", required = false) MultipartFile[] files,
+            @ModelAttribute PostCreateForm form,
             HttpServletRequest request
     ) throws CustomException {
         Long uid = resolveAuthorIdOrThrow(request);
-        PostResponse resp = postService.createPost(uid, content, files);
+        PostResponse resp = postService.createPost(uid, form.getContent(), form.getFiles());
         ApiResponse<PostResponse> body = ApiResponse.of(StatusCode.CREATED.getCode(), StatusCode.CREATED.getMessage(), resp);
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
