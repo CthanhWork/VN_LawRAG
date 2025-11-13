@@ -1,5 +1,6 @@
 package com.example.socialservice.model;
 
+import com.example.socialservice.enums.PostVisibility;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -24,6 +25,10 @@ public class Post {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false, length = 20)
+    private PostVisibility visibility = PostVisibility.PUBLIC;
+
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<PostMedia> mediaList = new ArrayList<>();
 
@@ -43,5 +48,6 @@ public class Post {
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
     public List<PostMedia> getMediaList() { return mediaList; }
     public void setMediaList(List<PostMedia> mediaList) { this.mediaList = mediaList; }
+    public PostVisibility getVisibility() { return visibility; }
+    public void setVisibility(PostVisibility visibility) { this.visibility = visibility; }
 }
-

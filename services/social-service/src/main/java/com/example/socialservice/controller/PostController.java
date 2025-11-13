@@ -1,6 +1,7 @@
 package com.example.socialservice.controller;
 
 import com.example.socialservice.dto.PostCreateForm;
+import com.example.socialservice.dto.PageResponse;
 import com.example.socialservice.dto.PostResponse;
 import com.example.socialservice.enums.StatusCode;
 import com.example.socialservice.exception.CustomException;
@@ -26,6 +27,35 @@ public class PostController {
     public PostController(PostService postService, JwtService jwtService) {
         this.postService = postService;
         this.jwtService = jwtService;
+    }
+
+    @GetMapping("/mine")
+    @Operation(summary = "Danh sách bài viết của tôi", description = "Phân trang: page,size. Lấy userId từ JWT.")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> myPosts(
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size,
+            HttpServletRequest request
+    ) throws CustomException {
+        Long uid = resolveAuthorIdOrThrow(request);
+        PageResponse<PostResponse> data = postService.listMyPosts(uid, page, size);
+        ApiResponse<PageResponse<PostResponse>> body = ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), data);
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/users/{userId}/posts")
+    @Operation(summary = "Danh sách bài viết của người dùng", description = "Chỉ trả về bài viết PUBLIC nếu không phải chủ sở hữu")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> userPosts(
+            @PathVariable("userId") Long userId,
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size,
+            HttpServletRequest request
+    ) throws CustomException {
+        Long currentUserId = resolveAuthorIdOrThrow(request);
+        PageResponse<PostResponse> data = postService.listUserPosts(userId, currentUserId, page, size);
+        ApiResponse<PageResponse<PostResponse>> body = ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), data);
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping(consumes = { "multipart/form-data" })

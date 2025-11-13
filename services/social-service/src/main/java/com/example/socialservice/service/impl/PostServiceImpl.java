@@ -1,13 +1,17 @@
 package com.example.socialservice.service.impl;
 
+import com.example.socialservice.dto.PageResponse;
 import com.example.socialservice.dto.PostMediaResponse;
 import com.example.socialservice.dto.PostResponse;
 import com.example.socialservice.enums.MediaType;
+import com.example.socialservice.enums.PostVisibility;
 import com.example.socialservice.enums.StatusCode;
 import com.example.socialservice.exception.CustomException;
 import com.example.socialservice.model.Post;
 import com.example.socialservice.model.PostMedia;
 import com.example.socialservice.model.User;
+import com.example.socialservice.repository.PostCommentRepository;
+import com.example.socialservice.repository.PostLikeRepository;
 import com.example.socialservice.repository.PostMediaRepository;
 import com.example.socialservice.repository.PostRepository;
 import com.example.socialservice.repository.UserRepository;
@@ -15,6 +19,8 @@ import com.example.socialservice.service.PostService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -36,6 +42,8 @@ public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
     private final PostMediaRepository postMediaRepository;
+    private final PostLikeRepository postLikeRepository;
+    private final PostCommentRepository postCommentRepository;
     private final UserRepository userRepository;
 
     private final Path uploadRoot;
@@ -44,11 +52,15 @@ public class PostServiceImpl implements PostService {
     public PostServiceImpl(PostRepository postRepository,
                            PostMediaRepository postMediaRepository,
                            UserRepository userRepository,
+                           PostLikeRepository postLikeRepository,
+                           PostCommentRepository postCommentRepository,
                            @Value("${app.media.upload-dir:uploads}") String uploadDir,
                            @Value("${app.media.public-prefix:/media}") String publicPrefix) throws IOException {
         this.postRepository = postRepository;
         this.postMediaRepository = postMediaRepository;
         this.userRepository = userRepository;
+        this.postLikeRepository = postLikeRepository;
+        this.postCommentRepository = postCommentRepository;
         this.uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();
         this.publicPrefix = publicPrefix.endsWith("/") ? publicPrefix.substring(0, publicPrefix.length()-1) : publicPrefix;
         Files.createDirectories(this.uploadRoot);
@@ -56,6 +68,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"myPosts", "userPosts"}, allEntries = true)
     public PostResponse createPost(Long authorId, String content, MultipartFile[] files) throws CustomException {
         if (authorId == null) throw new CustomException(StatusCode.VALIDATION_ERROR, "Missing authorId");
         User author = userRepository.findById(authorId).orElse(null);
@@ -64,6 +77,7 @@ public class PostServiceImpl implements PostService {
         Post post = new Post();
         post.setAuthorId(authorId);
         post.setContent(content);
+        post.setVisibility(PostVisibility.PUBLIC);
         post = postRepository.save(post);
 
         List<PostMediaResponse> mediaResponses = new ArrayList<>();
@@ -104,6 +118,81 @@ public class PostServiceImpl implements PostService {
 
         return new PostResponse(post.getId(), post.getAuthorId(), post.getContent(), post.getCreatedAt(), post.getUpdatedAt(), mediaResponses);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "myPosts", key = "#userId + ':' + #page + ':' + #size")
+    public PageResponse<PostResponse> listMyPosts(Long userId, int page, int size) throws CustomException {
+        var pageable = org.springframework.data.domain.PageRequest.of(sanitizePage(page), sanitizeSize(size));
+        var pageObj = postRepository.findByAuthorIdOrderByCreatedAtDesc(userId, pageable);
+        return mapPostPage(pageObj, userId, true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "userPosts", key = "#targetUserId + ':' + #currentUserId + ':' + #page + ':' + #size")
+    public PageResponse<PostResponse> listUserPosts(Long targetUserId, Long currentUserId, int page, int size) throws CustomException {
+        var pageable = org.springframework.data.domain.PageRequest.of(sanitizePage(page), sanitizeSize(size));
+        var sameUser = Objects.equals(targetUserId, currentUserId);
+        var pageObj = sameUser
+                ? postRepository.findByAuthorIdOrderByCreatedAtDesc(targetUserId, pageable)
+                : postRepository.findByAuthorIdAndVisibilityOrderByCreatedAtDesc(targetUserId, PostVisibility.PUBLIC, pageable);
+        return mapPostPage(pageObj, currentUserId, false);
+    }
+
+    private PageResponse<PostResponse> mapPostPage(org.springframework.data.domain.Page<Post> pageObj, Long currentUserId, boolean includePrivate) {
+        var posts = pageObj.getContent();
+        List<Long> ids = posts.stream().map(Post::getId).toList();
+
+        // Media batch
+        var mediaList = ids.isEmpty() ? List.<PostMedia>of() : postMediaRepository.findByPostIdIn(ids);
+        var mediaMap = new java.util.HashMap<Long, List<PostMediaResponse>>();
+        for (PostMedia pm : mediaList) {
+            mediaMap.computeIfAbsent(pm.getPost().getId(), k -> new ArrayList<>())
+                    .add(new PostMediaResponse(pm.getId(), pm.getMediaType(), pm.getUrl(), pm.getMimeType(), pm.getSizeBytes()));
+        }
+
+        // Like counts
+        var likeCountsRaw = ids.isEmpty() ? List.<Object[]>of() : postLikeRepository.countByPostIds(ids);
+        var likeCountMap = new java.util.HashMap<Long, Long>();
+        for (Object[] row : likeCountsRaw) {
+            Long postId = (Long) row[0];
+            Long cnt = (Long) row[1];
+            likeCountMap.put(postId, cnt);
+        }
+
+        // Comment counts
+        var commentCountsRaw = ids.isEmpty() ? List.<Object[]>of() : postCommentRepository.countByPostIds(ids);
+        var commentCountMap = new java.util.HashMap<Long, Long>();
+        for (Object[] row : commentCountsRaw) {
+            Long postId = (Long) row[0];
+            Long cnt = (Long) row[1];
+            commentCountMap.put(postId, cnt);
+        }
+
+        // Liked by current user
+        var likedSet = new java.util.HashSet<Long>();
+        if (currentUserId != null && !ids.isEmpty()) {
+            var likedIds = postLikeRepository.findLikedPostIdsByUser(currentUserId, ids);
+            likedSet.addAll(likedIds);
+        }
+
+        List<PostResponse> content = new ArrayList<>();
+        for (Post p : posts) {
+            var resp = new PostResponse(p.getId(), p.getAuthorId(), p.getContent(), p.getCreatedAt(), p.getUpdatedAt(), mediaMap.getOrDefault(p.getId(), List.of()));
+            resp.setLikeCount(likeCountMap.getOrDefault(p.getId(), 0L));
+            resp.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
+            resp.setLikedByCurrentUser(likedSet.contains(p.getId()));
+            content.add(resp);
+        }
+
+        return new PageResponse<>(content,
+                pageObj.getNumber(), pageObj.getSize(), pageObj.getTotalElements(), pageObj.getTotalPages(),
+                pageObj.hasNext(), pageObj.hasPrevious());
+    }
+
+    private int sanitizePage(int page) { return Math.max(0, page); }
+    private int sanitizeSize(int size) { return Math.min(50, Math.max(1, size)); }
 
     private MediaType determineMediaType(String contentType, String filename) {
         if (contentType != null) {
