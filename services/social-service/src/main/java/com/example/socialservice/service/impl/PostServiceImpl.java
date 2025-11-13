@@ -16,6 +16,7 @@ import com.example.socialservice.repository.PostMediaRepository;
 import com.example.socialservice.repository.PostRepository;
 import com.example.socialservice.repository.UserRepository;
 import com.example.socialservice.service.PostService;
+import com.example.socialservice.service.CacheEvictService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.Objects;
 
 @Service
 public class PostServiceImpl implements PostService {
@@ -48,12 +50,14 @@ public class PostServiceImpl implements PostService {
 
     private final Path uploadRoot;
     private final String publicPrefix;
+    private final CacheEvictService cacheEvictService;
 
     public PostServiceImpl(PostRepository postRepository,
                            PostMediaRepository postMediaRepository,
                            UserRepository userRepository,
                            PostLikeRepository postLikeRepository,
                            PostCommentRepository postCommentRepository,
+                           CacheEvictService cacheEvictService,
                            @Value("${app.media.upload-dir:uploads}") String uploadDir,
                            @Value("${app.media.public-prefix:/media}") String publicPrefix) throws IOException {
         this.postRepository = postRepository;
@@ -63,13 +67,13 @@ public class PostServiceImpl implements PostService {
         this.postCommentRepository = postCommentRepository;
         this.uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();
         this.publicPrefix = publicPrefix.endsWith("/") ? publicPrefix.substring(0, publicPrefix.length()-1) : publicPrefix;
+        this.cacheEvictService = cacheEvictService;
         Files.createDirectories(this.uploadRoot);
     }
 
     @Override
     @Transactional
-    @CacheEvict(cacheNames = {"myPosts", "userPosts"}, allEntries = true)
-    public PostResponse createPost(Long authorId, String content, MultipartFile[] files) throws CustomException {
+    public PostResponse createPost(Long authorId, String content, MultipartFile[] files, PostVisibility visibility) throws CustomException {
         if (authorId == null) throw new CustomException(StatusCode.VALIDATION_ERROR, "Missing authorId");
         User author = userRepository.findById(authorId).orElse(null);
         if (author == null) throw new CustomException(StatusCode.USER_NOT_FOUND);
@@ -77,7 +81,7 @@ public class PostServiceImpl implements PostService {
         Post post = new Post();
         post.setAuthorId(authorId);
         post.setContent(content);
-        post.setVisibility(PostVisibility.PUBLIC);
+        post.setVisibility(visibility != null ? visibility : PostVisibility.PUBLIC);
         post = postRepository.save(post);
 
         List<PostMediaResponse> mediaResponses = new ArrayList<>();
@@ -116,7 +120,100 @@ public class PostServiceImpl implements PostService {
             }
         }
 
+        // targeted cache eviction
+        cacheEvictService.evictMyPostsForUser(authorId);
+        cacheEvictService.evictUserPostsForTarget(authorId);
+
         return new PostResponse(post.getId(), post.getAuthorId(), post.getContent(), post.getCreatedAt(), post.getUpdatedAt(), mediaResponses);
+    }
+
+    private void ensureReadable(Post post, Long userId) throws CustomException {
+        if (post == null) throw new CustomException(StatusCode.NOT_FOUND);
+        if (post.getVisibility() == PostVisibility.PRIVATE && (userId == null || !post.getAuthorId().equals(userId))) {
+            throw new CustomException(StatusCode.FORBIDDEN);
+        }
+    }
+
+    @Override
+    @Transactional
+    public long likePost(Long userId, Long postId) throws CustomException {
+        Post post = postRepository.findById(postId).orElse(null);
+        ensureReadable(post, userId);
+        if (!postLikeRepository.existsByPost_IdAndUserId(postId, userId)) {
+            var like = new com.example.socialservice.model.PostLike();
+            like.setPost(post);
+            like.setUserId(userId);
+            postLikeRepository.save(like);
+        }
+        cacheEvictService.evictMyPostsForUser(post.getAuthorId());
+        cacheEvictService.evictUserPostsForTarget(post.getAuthorId());
+        return postLikeRepository.countByPost_Id(postId);
+    }
+
+    @Override
+    @Transactional
+    public long unlikePost(Long userId, Long postId) throws CustomException {
+        Post post = postRepository.findById(postId).orElse(null);
+        ensureReadable(post, userId);
+        postLikeRepository.deleteByPost_IdAndUserId(postId, userId);
+        cacheEvictService.evictMyPostsForUser(post.getAuthorId());
+        cacheEvictService.evictUserPostsForTarget(post.getAuthorId());
+        return postLikeRepository.countByPost_Id(postId);
+    }
+
+    @Override
+    @Transactional
+    public com.example.socialservice.dto.CommentResponse addComment(Long userId, Long postId, String content) throws CustomException {
+        if (!StringUtils.hasText(content)) throw new CustomException(StatusCode.VALIDATION_ERROR, "Empty content");
+        Post post = postRepository.findById(postId).orElse(null);
+        ensureReadable(post, userId);
+        var c = new com.example.socialservice.model.PostComment();
+        c.setPost(post);
+        c.setAuthorId(userId);
+        c.setContent(content);
+        var saved = postCommentRepository.save(c);
+        cacheEvictService.evictMyPostsForUser(post.getAuthorId());
+        cacheEvictService.evictUserPostsForTarget(post.getAuthorId());
+        return new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(), saved.getCreatedAt());
+    }
+
+    @Override
+    @Transactional
+    public com.example.socialservice.dto.CommentResponse updateComment(Long userId, Long postId, Long commentId, String content) throws CustomException {
+        if (!StringUtils.hasText(content)) throw new CustomException(StatusCode.VALIDATION_ERROR, "Empty content");
+        var c = postCommentRepository.findById(commentId).orElse(null);
+        if (c == null || !c.getPost().getId().equals(postId)) throw new CustomException(StatusCode.NOT_FOUND);
+        if (!c.getAuthorId().equals(userId)) throw new CustomException(StatusCode.FORBIDDEN);
+        c.setContent(content);
+        var saved = postCommentRepository.save(c);
+        cacheEvictService.evictMyPostsForUser(c.getPost().getAuthorId());
+        cacheEvictService.evictUserPostsForTarget(c.getPost().getAuthorId());
+        return new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(), saved.getCreatedAt());
+    }
+
+    @Override
+    @Transactional
+    public void deleteComment(Long userId, Long postId, Long commentId) throws CustomException {
+        var c = postCommentRepository.findById(commentId).orElse(null);
+        if (c == null || !c.getPost().getId().equals(postId)) throw new CustomException(StatusCode.NOT_FOUND);
+        if (!c.getAuthorId().equals(userId)) throw new CustomException(StatusCode.FORBIDDEN);
+        Long authorId = c.getPost().getAuthorId();
+        postCommentRepository.delete(c);
+        cacheEvictService.evictMyPostsForUser(authorId);
+        cacheEvictService.evictUserPostsForTarget(authorId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<com.example.socialservice.dto.CommentResponse> listComments(Long postId, int page, int size) throws CustomException {
+        var pageable = org.springframework.data.domain.PageRequest.of(sanitizePage(page), sanitizeSize(size));
+        var p = postRepository.findById(postId).orElse(null);
+        if (p == null) throw new CustomException(StatusCode.NOT_FOUND);
+        var pg = postCommentRepository.findByPost_IdOrderByCreatedAtAsc(postId, pageable);
+        var items = pg.getContent().stream()
+                .map(c -> new com.example.socialservice.dto.CommentResponse(c.getId(), postId, c.getAuthorId(), c.getContent(), c.getCreatedAt()))
+                .toList();
+        return new PageResponse<>(items, pg.getNumber(), pg.getSize(), pg.getTotalElements(), pg.getTotalPages(), pg.hasNext(), pg.hasPrevious());
     }
 
     @Override
