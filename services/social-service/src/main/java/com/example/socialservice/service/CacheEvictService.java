@@ -28,6 +28,10 @@ public class CacheEvictService {
         deleteByPattern(prefix + "userPosts::" + targetUserId + ":*");
     }
 
+    public void evictPublicFeed() {
+        deleteByPattern(prefix + "publicFeed::*");
+    }
+
     private void deleteByPattern(String pattern) {
         try {
             Set<String> keys = redis.keys(pattern);
@@ -39,4 +43,3 @@ public class CacheEvictService {
         }
     }
 }
-

@@ -24,4 +24,10 @@ public interface PostService {
     CommentResponse updateComment(Long userId, Long postId, Long commentId, String content) throws CustomException;
     void deleteComment(Long userId, Long postId, Long commentId) throws CustomException;
     PageResponse<CommentResponse> listComments(Long postId, int page, int size) throws CustomException;
+
+    // Visibility
+    PostResponse updateVisibility(Long userId, Long postId, PostVisibility visibility) throws CustomException;
+
+    // Public feed
+    PageResponse<PostResponse> listPublicFeed(Long currentUserId, int page, int size) throws CustomException;
 }

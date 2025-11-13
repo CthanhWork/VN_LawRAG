@@ -124,6 +124,13 @@ public class PostServiceImpl implements PostService {
         cacheEvictService.evictMyPostsForUser(authorId);
         cacheEvictService.evictUserPostsForTarget(authorId);
 
+        // targeted cache eviction
+        cacheEvictService.evictMyPostsForUser(authorId);
+        cacheEvictService.evictUserPostsForTarget(authorId);
+        if (post.getVisibility() == PostVisibility.PUBLIC) {
+            cacheEvictService.evictPublicFeed();
+        }
+
         return new PostResponse(post.getId(), post.getAuthorId(), post.getContent(), post.getCreatedAt(), post.getUpdatedAt(), mediaResponses);
     }
 
@@ -242,7 +249,7 @@ public class PostServiceImpl implements PostService {
         List<Long> ids = posts.stream().map(Post::getId).toList();
 
         // Media batch
-        var mediaList = ids.isEmpty() ? List.<PostMedia>of() : postMediaRepository.findByPostIdIn(ids);
+        var mediaList = ids.isEmpty() ? List.<PostMedia>of() : postMediaRepository.findByPost_IdIn(ids);
         var mediaMap = new java.util.HashMap<Long, List<PostMediaResponse>>();
         for (PostMedia pm : mediaList) {
             mediaMap.computeIfAbsent(pm.getPost().getId(), k -> new ArrayList<>())
@@ -290,6 +297,30 @@ public class PostServiceImpl implements PostService {
 
     private int sanitizePage(int page) { return Math.max(0, page); }
     private int sanitizeSize(int size) { return Math.min(50, Math.max(1, size)); }
+
+    @Override
+    @Transactional
+    public PostResponse updateVisibility(Long userId, Long postId, PostVisibility visibility) throws CustomException {
+        if (visibility == null) throw new CustomException(StatusCode.VALIDATION_ERROR, "Missing visibility");
+        Post post = postRepository.findById(postId).orElse(null);
+        if (post == null) throw new CustomException(StatusCode.NOT_FOUND);
+        if (!post.getAuthorId().equals(userId)) throw new CustomException(StatusCode.FORBIDDEN);
+        post.setVisibility(visibility);
+        Post saved = postRepository.save(post);
+        cacheEvictService.evictMyPostsForUser(userId);
+        cacheEvictService.evictUserPostsForTarget(userId);
+        cacheEvictService.evictPublicFeed();
+        return new PostResponse(saved.getId(), saved.getAuthorId(), saved.getContent(), saved.getCreatedAt(), saved.getUpdatedAt(), List.of());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "publicFeed", key = "#page + ':' + #size")
+    public PageResponse<PostResponse> listPublicFeed(Long currentUserId, int page, int size) throws CustomException {
+        var pageable = org.springframework.data.domain.PageRequest.of(sanitizePage(page), sanitizeSize(size));
+        var pageObj = postRepository.findByVisibilityOrderByCreatedAtDesc(PostVisibility.PUBLIC, pageable);
+        return mapPostPage(pageObj, currentUserId, false);
+    }
 
     private MediaType determineMediaType(String contentType, String filename) {
         if (contentType != null) {

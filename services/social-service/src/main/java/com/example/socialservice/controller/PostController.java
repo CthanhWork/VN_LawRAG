@@ -5,6 +5,7 @@ import com.example.socialservice.dto.PageResponse;
 import com.example.socialservice.dto.PostResponse;
 import com.example.socialservice.dto.CommentResponse;
 import com.example.socialservice.dto.CommentCreateRequest;
+import com.example.socialservice.dto.UpdateVisibilityRequest;
 import com.example.socialservice.enums.StatusCode;
 import com.example.socialservice.exception.CustomException;
 import com.example.socialservice.payload.ApiResponse;
@@ -156,6 +157,35 @@ public class PostController {
             @RequestParam(value = "size", required = false, defaultValue = "10") int size
     ) throws CustomException {
         PageResponse<CommentResponse> data = postService.listComments(postId, page, size);
+        return ResponseEntity.ok(ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), data));
+    }
+
+    // --- Visibility ---
+    @PatchMapping("/{postId}/visibility")
+    @Operation(summary = "Cập nhật visibility bài viết (chỉ chủ bài viết)")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<PostResponse>> updateVisibility(
+            @PathVariable Long postId,
+            @RequestBody UpdateVisibilityRequest req,
+            HttpServletRequest request
+    ) throws CustomException {
+        Long uid = resolveAuthorIdOrThrow(request);
+        var saved = postService.updateVisibility(uid, postId, req.getVisibility());
+        return ResponseEntity.ok(ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), saved));
+    }
+
+    // --- Public feed ---
+    @GetMapping("/feed")
+    @Operation(summary = "Feed bài viết công khai", description = "Có thể gửi kèm Bearer để đánh dấu likedByCurrentUser")
+    public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> feed(
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size,
+            HttpServletRequest request
+    ) throws CustomException {
+        Long currentUserId = null;
+        String token = jwtService.extractToken(request);
+        if (token != null && jwtService.validateToken(token)) currentUserId = jwtService.getUserIdFromJWT(token);
+        PageResponse<PostResponse> data = postService.listPublicFeed(currentUserId, page, size);
         return ResponseEntity.ok(ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), data));
     }
 }

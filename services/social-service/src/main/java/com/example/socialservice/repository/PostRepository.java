@@ -10,4 +10,5 @@ import com.example.socialservice.enums.PostVisibility;
 public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findByAuthorIdOrderByCreatedAtDesc(Long authorId, Pageable pageable);
     Page<Post> findByAuthorIdAndVisibilityOrderByCreatedAtDesc(Long authorId, PostVisibility visibility, Pageable pageable);
+    Page<Post> findByVisibilityOrderByCreatedAtDesc(PostVisibility visibility, Pageable pageable);
 }
