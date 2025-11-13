@@ -27,26 +27,23 @@ public class PostController {
     }
 
     @PostMapping(consumes = { "multipart/form-data" })
-    @Operation(summary = "Tạo bài viết (multipart)", description = "Trường form: content, files[]. Lấy authorId từ JWT nếu có, hoặc truyền authorId.")
+    @Operation(summary = "Tạo bài viết (multipart)", description = "Trường form: content, files[]. Lấy userId từ JWT Bearer token (không truyền authorId).")
     public ResponseEntity<ApiResponse<PostResponse>> create(
             @RequestParam(value = "content", required = false) String content,
-            @RequestParam(value = "authorId", required = false) Long authorId,
             @RequestParam(value = "files", required = false) MultipartFile[] files,
             HttpServletRequest request
     ) throws CustomException {
-        Long uid = resolveAuthorId(authorId, request);
+        Long uid = resolveAuthorIdOrThrow(request);
         PostResponse resp = postService.createPost(uid, content, files);
         ApiResponse<PostResponse> body = ApiResponse.of(StatusCode.CREATED.getCode(), StatusCode.CREATED.getMessage(), resp);
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
-    private Long resolveAuthorId(Long authorId, HttpServletRequest request) {
-        if (authorId != null) return authorId;
+    private Long resolveAuthorIdOrThrow(HttpServletRequest request) throws CustomException {
         String token = jwtService.extractToken(request);
         if (token != null && jwtService.validateToken(token)) {
             return jwtService.getUserIdFromJWT(token);
         }
-        return null;
+        throw new CustomException(StatusCode.UNAUTHORIZED);
     }
 }
-
