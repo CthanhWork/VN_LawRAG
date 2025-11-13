@@ -121,7 +121,7 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         return lower.contains("json")
                 || lower.startsWith("text/")
                 || lower.contains("xml")
-                || lower.contains(MimeTypeUtils.APPLICATION_FORM_URLENCODED_VALUE);
+                || lower.contains(MediaType.APPLICATION_FORM_URLENCODED_VALUE);
     }
 
     private String getBodyAsString(byte[] buf) {
@@ -139,4 +139,3 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         return s.substring(0, maxPayload) + "...";
     }
 }
-
