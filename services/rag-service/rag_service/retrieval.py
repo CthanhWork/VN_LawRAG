@@ -524,6 +524,7 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
         or any("dieu 8" in norm_text(x) for x in (pat_q or []))
     )
     qu_queries: List[str] = []
+    qu_keywords: List[str] = []
     qu_must: List[str] = []
     qu_law_codes: List[str] = []
     eff_override = None
@@ -556,15 +557,21 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             qu_queries = (qu_queries or []) + _qs
             qu_must = (qu_must or []) + _must
             qu_law_codes = (qu_law_codes or []) + _codes
+            qu_keywords = (qu_keywords or []) + _must
         except Exception:
             pass
 
+    # Xây tập truy vấn dựa trên kết quả LLM (từ khóa + subqueries) và patterns
     queries: List[str] = []
+    for kw in (qu_keywords or []):
+        if kw:
+            queries.append(str(kw))
     if pat_q:
         queries.extend(pat_q)
     if qu_queries:
         queries.extend(qu_queries)
     if not queries:
+        # Fallback: mở rộng từ chính câu hỏi gốc nếu LLM không trả gì
         queries = expand_queries(question) or [question]
     seenq = set()
     deduped: List[str] = []
@@ -575,27 +582,9 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
     queries = deduped[:8]
     qvecs = [state.emb.encode([q])[0].tolist() for q in queries]
 
-    filter_conditions: List[Dict[str, Any]] = []
-    filter_conditions.append({"doc_type": {"$in": ["LAW", "DECREE"]}})
-
-    codes_union: set = set()
-    if qu_law_codes:
-        codes_union.update(qu_law_codes)
-    if pat_codes:
-        codes_union.update(pat_codes)
-    if codes_union:
-        filter_conditions.append({"law_code": {"$in": sorted(codes_union)}})
-
-    where: Dict[str, Any]
-    if len(filter_conditions) == 1:
-        where = filter_conditions[0]
-    else:
-        where = {"$and": filter_conditions}
-
     res = state.col.query(
         query_embeddings=qvecs,
         n_results=max(k, 8),
-        where=where,
         include=["documents", "metadatas", "distances"],
     )
 
@@ -671,6 +660,60 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
         if s <= eff_date <= e:
             filtered.append(it)
     items = filtered or candidates
+
+    # Extra deterministic retrieval cho các case vi phạm chế độ một vợ một chồng:
+    # nếu câu hỏi thể hiện ý định "polygamy" (is_poly=True) thì bổ sung
+    # các node tìm trực tiếp từ law-service theo cụm từ khóa mạnh.
+    if is_poly:
+        try:
+            poly_keywords = [
+                "mot vo mot chong",
+                "che do mot vo mot chong",
+                "chung song nhu vo chong",
+            ]
+            seen_extra: Set[int] = set()
+            extra_items: List[Dict[str, Any]] = []
+            eff_str = eff_date.isoformat()
+            for kw in poly_keywords:
+                nodes = _search_nodes(kw, effective_at=eff_str, page=0, size=5)
+                for n in nodes:
+                    try:
+                        nid = int(n.get("id"))
+                    except Exception:
+                        continue
+                    if nid in seen_extra:
+                        continue
+                    seen_extra.add(nid)
+                    law_id = n.get("lawId")
+                    law_code = _law_id_to_code(law_id) or ""
+                    doc_type = _law_id_to_doc_type(law_id) or "LAW"
+                    node_path = (n.get("path") or "").strip()
+                    content = (n.get("contentText") or n.get("contentHtml") or "").strip()
+                    if not content:
+                        continue
+                    extra_items.append(
+                        {
+                            "law_code": law_code,
+                            "node_path": node_path,
+                            "node_id": nid,
+                            "content": content,
+                            "doc_type": doc_type,
+                            "effective_start": n.get("effectiveStart") or "1900-01-01",
+                            "effective_end": n.get("effectiveEnd") or "9999-12-31",
+                            "_sim": 1.0,
+                        }
+                    )
+
+            if extra_items:
+                existing_ids = {it.get("node_id") for it in items}
+                # Ưu tiên chèn các node "một vợ một chồng" lên đầu danh sách.
+                for ei in extra_items:
+                    if ei["node_id"] not in existing_ids:
+                        items.insert(0, ei)
+                        existing_ids.add(ei["node_id"])
+        except Exception:
+            # Không để lỗi deterministic search phá hỏng retrieval thông thường.
+            pass
     items.sort(key=lambda x: x.get("_sim", 0.0), reverse=True)
     out = [
         {

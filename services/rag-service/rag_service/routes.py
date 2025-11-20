@@ -137,7 +137,12 @@ def analyze():
         if not verdict:
             verdict = violation_judgment_heuristic(q, rich_ctx)
 
+        # Chuẩn hóa dữ liệu trả về từ LLM/heuristic
         try:
+            # Nếu LLM trả về 'citations' nhưng không có 'matched', map sang matched
+            if not verdict.get("matched") and verdict.get("citations"):
+                verdict["matched"] = verdict.get("citations") or []
+
             allowed = {(c.get("law_code") or "", c.get("node_path") or "", c.get("node_id")) for c in rich_ctx}
             matched = []
             for m in (verdict.get("matched") or []):
@@ -150,6 +155,10 @@ def analyze():
             verdict["matched"] = matched
         except Exception:
             pass
+
+        # Bảo đảm luôn có answer: nếu LLM không cung cấp, fallback sang answer rút gọn từ context
+        if not verdict.get("answer"):
+            verdict["answer"] = synthesize_answer2(q, t, rich_ctx)
 
         used_nodes = [
             m.get("node_id")
