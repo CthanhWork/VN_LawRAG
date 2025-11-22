@@ -2,6 +2,8 @@
 
 _Phạm vi:_ hoàn thiện newsfeed cá nhân hóa, realtime tương tác, an toàn media và vận hành/quan sát cho social-service; chuẩn bị bước mở rộng theo dõi/hardening bảo mật.
 
+**Link kiểm tra (GitHub develop):** https://github.com/CthanhWork/VN_LawRAG/tree/develop
+
 ## 1) Tóm tắt
 - Hoàn thiện newsfeed cá nhân hóa (follow/following), xếp hạng bài viết theo độ mới + liên quan; bổ sung hành vi ẩn/báo cáo để cá nhân hóa mạnh hơn dòng bài.
 - Bổ sung realtime cập nhật like/comment qua SSE, đồng bộ đếm và trạng thái tương tác, giảm chênh lệch dữ liệu giữa nhiều phiên trình duyệt.
