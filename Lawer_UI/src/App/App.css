@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary: #0d6efd;
+  --primary-strong: #0a4eb3;
+  --accent: #2c98f0;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --surface: #ffffff;
+  --muted: #4b5563;
+  --border: #e2e8f0;
+  --bg: linear-gradient(180deg, #f5f8ff 0%, #ffffff 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: #0f172a;
+  font-family: 'Poppins', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.shell-container {
+  width: min(1180px, 94%);
+  margin: 0 auto;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+  padding: 40px 0 64px;
+}
+
+.page-card {
+  background: var(--surface);
+  color: #0f172a;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 32px;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.page-subtitle {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.page-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #cbd5e1;
+  padding: 14px 0;
+}
+
+.page-loading__spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid rgba(148, 163, 184, 0.4);
+  border-top-color: #38bdf8;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
