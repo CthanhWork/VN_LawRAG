@@ -6,7 +6,7 @@ const Pager = ({ state, onPrev, onNext }) => (
       disabled={!state.hasPrevious || state.loading}
       onClick={onPrev}
     >
-      Truoc
+      Trước
     </button>
     <span className="admin__pager-text">
       Trang {state.page + 1} / {Math.max(1, state.totalPages || 1)}

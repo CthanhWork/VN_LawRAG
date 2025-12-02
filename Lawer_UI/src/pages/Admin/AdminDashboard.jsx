@@ -1,52 +1,75 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import UsersPanel from './components/UsersPanel';
 import PostsPanel from './components/PostsPanel';
 import LawsPanel from './components/LawsPanel';
-import RagPanel from './components/RagPanel';
 import './AdminDashboard.css';
 
-const tabs = [
-  { id: 'users', label: 'Nguoi dung', sub: 'Trang thai & vai tro' },
-  { id: 'posts', label: 'Bai viet', sub: 'Quyen xem & binh luan' },
-  { id: 'laws', label: 'Van ban luat', sub: 'Yeu cau X-API-KEY' },
-  { id: 'rag', label: 'RAG', sub: 'Trang thai chi muc' },
+const sections = [
+  { id: 'users', label: 'Người dùng', sub: 'Kiểm soát trạng thái & vai trò' },
+  { id: 'posts', label: 'Bài viết', sub: 'Duyệt quyền hiển thị và bình luận' },
+  { id: 'laws', label: 'Kho văn bản', sub: 'Tra cứu, khai thác dữ liệu pháp luật' },
 ];
 
 const AdminDashboard = () => {
-  const [tab, setTab] = useState('users');
+  const [section, setSection] = useState('users');
+  const currentSection = useMemo(
+    () => sections.find((item) => item.id === section),
+    [section],
+  );
+
+  const renderSection = () => {
+    switch (section) {
+      case 'posts':
+        return <PostsPanel />;
+      case 'laws':
+        return <LawsPanel />;
+      default:
+        return <UsersPanel />;
+    }
+  };
 
   return (
     <section className="admin page-card">
-      <div className="admin__header">
-        <div>
-          <p className="admin__eyebrow">Admin</p>
-          <h1 className="page-title">Bang dieu khien Admin</h1>
-          <p className="page-subtitle">Quan tri nguoi dung/bai viet, van ban luat va RAG.</p>
-        </div>
-        <div className="admin__chips">
-          <span className="pill pill--outline">JWT: ADMIN</span>
-          <span className="pill pill--ghost">Khu vuc bao ve</span>
+      <div className="admin__layout">
+        <aside className="admin__sidebar">
+          <div className="admin__brand">
+            <p className="admin__eyebrow">Khu vực quản trị</p>
+            <h1 className="admin__title">Bảng điều hành</h1>
+          </div>
+
+          <div className="admin__menu">
+            {sections.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`admin__menu-item ${section === item.id ? 'is-active' : ''}`}
+                onClick={() => setSection(item.id)}
+              >
+                <div>
+                  <div className="admin__menu-title">{item.label}</div>
+                  <div className="admin__menu-sub">{item.sub}</div>
+                </div>
+                <span className="admin__menu-dot" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+
+          <div className="admin__sidebar-foot">
+            <div className="pill pill--outline">ADMIN</div>
+          </div>
+        </aside>
+
+        <div className="admin__body">
+          <header className="admin__hero">
+            <div>
+              <p className="admin__eyebrow">Điều phối</p>
+              <h2 className="admin__hero-title">{currentSection?.label || 'Trung tâm admin'}</h2>
+            </div>
+          </header>
+
+          <div className="admin__content">{renderSection()}</div>
         </div>
       </div>
-
-      <div className="admin__tabs">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`admin__tab ${tab === t.id ? 'is-active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            <span>{t.label}</span>
-            <span className="admin__tab-sub">{t.sub}</span>
-          </button>
-        ))}
-      </div>
-
-      {tab === 'users' && <UsersPanel />}
-      {tab === 'posts' && <PostsPanel />}
-      {tab === 'laws' && <LawsPanel />}
-      {tab === 'rag' && <RagPanel />}
     </section>
   );
 };

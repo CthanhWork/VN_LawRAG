@@ -1,28 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rubik:wght@400;500;700&family=Space+Grotesk:wght@500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Rubik:wght@400;500;700&family=Space+Grotesk:wght@500;600&display=swap');
 
 :root {
-  --bg: radial-gradient(120% 120% at 12% 14%, rgba(80, 176, 255, 0.18), rgba(5, 12, 22, 0)),
-    radial-gradient(90% 90% at 84% 4%, rgba(46, 140, 255, 0.12), rgba(5, 12, 22, 0)),
-    #050c18;
-  --surface: rgba(8, 18, 32, 0.84);
-  --surface-strong: rgba(5, 14, 26, 0.94);
-  --surface-subtle: rgba(16, 28, 46, 0.62);
-  --border: rgba(117, 186, 255, 0.2);
-  --border-strong: rgba(117, 186, 255, 0.48);
-  --text-primary: rgba(231, 243, 255, 0.96);
-  --text-secondary: rgba(198, 221, 243, 0.8);
-  --text-muted: rgba(168, 198, 226, 0.64);
-  --accent: #3bb4ff;
-  --accent-2: #7ecfff;
-  --success: #22c55e;
-  --danger: #f87171;
-  --shadow-card: 2px 4px 16px 0px rgba(248, 248, 248, 0.06) inset,
-    0px 24px 24px -16px rgba(5, 5, 5, 0.35),
-    0px 10px 30px rgba(0, 0, 0, 0.35),
-    0px 4px 8px rgba(0, 0, 0, 0.35);
-  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.35);
-  --font-heading: 'Space Grotesk', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-body: 'Inter', 'Rubik', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --bg: #e7eddf;
+  --surface: #f4f7f0;
+  --surface-strong: #e9eee2;
+  --surface-subtle: #dfe7d6;
+  --border: rgba(93, 123, 111, 0.22);
+  --border-strong: rgba(93, 123, 111, 0.48);
+  --text-primary: #1f2a23;
+  --text-secondary: #2f3c34;
+  --text-muted: #607064;
+  --accent: #5d7b6f;
+  --accent-2: #a4c3a2;
+  --success: #3b945e;
+  --danger: #d36161;
+  --shadow-card: 0 10px 24px rgba(31, 42, 35, 0.08);
+  --shadow-soft: 0 10px 24px rgba(31, 42, 35, 0.1);
+  --font-heading: 'Space Grotesk', 'Be Vietnam Pro', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Be Vietnam Pro', 'Inter', 'Rubik', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -59,13 +54,19 @@ a {
   padding: 32px 0 56px;
 }
 
+.app-content--wide {
+  width: 100%;
+  max-width: none;
+  padding: 32px 24px 56px;
+  margin: 0 auto;
+}
+
 .page-card {
   background: var(--surface);
   color: var(--text-primary);
   border-radius: 20px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
-  backdrop-filter: blur(14px);
 }
 
 .page-title {

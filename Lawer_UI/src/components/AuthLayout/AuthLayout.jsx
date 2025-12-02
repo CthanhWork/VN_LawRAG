@@ -17,10 +17,7 @@ const AuthLayout = ({ children, title, image }) => (
       <div className="auth__form-box">
         <div className="auth__logo-wrapper">
           <div className="auth__logo">VL</div>
-          <div className="auth__brand">
-            <div className="auth__brand-title">VN Law RAG</div>
-            <div className="auth__brand-sub">Gateway UI</div>
-          </div>
+          <div className="auth__brand-title">VN Law</div>
         </div>
         {title && <h2 className="auth__title">{title}</h2>}
         {children}

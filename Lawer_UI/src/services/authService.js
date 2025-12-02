@@ -41,6 +41,24 @@ export const register = async (payload) => {
   return response.data;
 };
 
+export const verifyOtp = async ({ email, code }) => {
+  const response = await callService('auth', {
+    method: 'post',
+    url: '/api/social/auth/verify-otp',
+    data: { email, code },
+  });
+  return response.data;
+};
+
+export const resendOtp = async (email) => {
+  const response = await callService('auth', {
+    method: 'post',
+    url: '/api/social/auth/resend-otp',
+    data: { email },
+  });
+  return response.data;
+};
+
 export const requestForgotPassword = async (email) => {
   const response = await callService('auth', {
     method: 'post',
@@ -64,6 +82,8 @@ const authService = {
   logout,
   getProfile,
   register,
+  verifyOtp,
+  resendOtp,
   requestForgotPassword,
   resetPassword,
 };

@@ -1,17 +1,17 @@
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { resetPassword, resendOtp } from '../../services/authService';
+import { verifyOtp, resendOtp } from '../../services/authService';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
-import './ResetPassword.css';
+import './VerifyOtp.css';
 
-const ResetPassword = () => {
+const VerifyOtp = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({ email: '', code: '', newPassword: '' });
+  const presetEmail = location.state?.email || '';
+  const [form, setForm] = useState({ email: '', code: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const presetEmail = location.state?.email || '';
 
   useEffect(() => {
     if (presetEmail) {
@@ -30,11 +30,11 @@ const ResetPassword = () => {
     setMessage('');
     setError('');
     try {
-      await resetPassword(form);
-      setMessage('Đặt lại mật khẩu thành công. Bạn có thể đăng nhập.');
+      await verifyOtp(form);
+      setMessage('Kích hoạt tài khoản thành công. Bạn có thể đăng nhập.');
       setTimeout(() => navigate('/login'), 800);
     } catch (err) {
-      const fallback = 'Không đặt lại được mật khẩu. Kiểm tra mã OTP và email.';
+      const fallback = 'Xác thực OTP thất bại. Kiểm tra lại email/mã OTP.';
       const serverMsg = err?.response?.data?.message;
       setError(serverMsg || fallback);
     } finally {
@@ -63,7 +63,7 @@ const ResetPassword = () => {
   };
 
   return (
-    <AuthLayout title="Nhập OTP & đặt lại mật khẩu">
+    <AuthLayout title="Nhập OTP kích hoạt">
       <form className="auth__form" onSubmit={handleSubmit}>
         <label className="auth__field">
           <span>Email</span>
@@ -71,7 +71,7 @@ const ResetPassword = () => {
             className="auth__input"
             type="email"
             name="email"
-            placeholder="Nhập email"
+            placeholder="Nhập email đăng ký"
             value={form.email}
             onChange={handleChange}
             required
@@ -93,31 +93,17 @@ const ResetPassword = () => {
             </button>
           </div>
         </label>
-        <label className="auth__field">
-          <span>Mật khẩu mới</span>
-          <input
-            className="auth__input"
-            type="password"
-            name="newPassword"
-            placeholder="Tối thiểu 6 ký tự"
-            minLength={6}
-            value={form.newPassword}
-            onChange={handleChange}
-            required
-          />
-        </label>
         <button className="auth__submit" type="submit" disabled={loading}>
-          {loading ? 'Đang xử lý...' : 'Đặt lại'}
+          {loading ? 'Đang xác thực...' : 'Xác thực'}
         </button>
         {message && <div className="auth__alert auth__alert--success">{message}</div>}
         {error && <div className="auth__alert auth__alert--error">{error}</div>}
         <div className="auth__extra">
-          Nhớ mật khẩu? <Link to="/login">Đăng nhập</Link> •{' '}
-          <Link to="/forgot-password">Gửi lại OTP</Link>
+          Đã xác thực? <Link to="/login">Đăng nhập</Link>
         </div>
       </form>
     </AuthLayout>
   );
 };
 
-export default ResetPassword;
+export default VerifyOtp;

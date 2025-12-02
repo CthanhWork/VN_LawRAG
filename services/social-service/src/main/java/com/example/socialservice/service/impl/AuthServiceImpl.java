@@ -7,6 +7,7 @@ import com.example.socialservice.mapper.UserMapper;
 import com.example.socialservice.model.User;
 import com.example.socialservice.service.AuthService;
 import com.example.socialservice.service.JwtService;
+import com.example.socialservice.service.OtpMailService;
 import com.example.socialservice.service.OtpService;
 import com.example.socialservice.service.UserService;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,17 +17,20 @@ import org.springframework.stereotype.Service;
 public class AuthServiceImpl implements AuthService {
     private final UserService userService;
     private final OtpService otpService;
+    private final OtpMailService otpMailService;
     private final JwtService jwtService;
     private final UserMapper userMapper;
     private final int otpTtlSeconds;
 
     public AuthServiceImpl(UserService userService,
                            OtpService otpService,
+                           OtpMailService otpMailService,
                            JwtService jwtService,
                            UserMapper userMapper,
                            @Value("${app.otp.ttl-seconds:600}") int otpTtlSeconds) {
         this.userService = userService;
         this.otpService = otpService;
+        this.otpMailService = otpMailService;
         this.jwtService = jwtService;
         this.userMapper = userMapper;
         this.otpTtlSeconds = Math.max(60, otpTtlSeconds);
@@ -35,7 +39,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public RegisterPendingResponse register(RegisterRequest request) throws CustomException {
         User u = userService.register(request, true);
-        otpService.issueRegisterCode(u.getEmail());
+        String code = otpService.issueRegisterCode(u.getEmail());
+        otpMailService.sendRegisterOtp(u.getEmail(), code);
         return new RegisterPendingResponse(true, u.getEmail(), otpTtlSeconds);
     }
 
@@ -52,7 +57,8 @@ public class AuthServiceImpl implements AuthService {
         if ("ACTIVE".equalsIgnoreCase(u.getStatus())) {
             throw new CustomException(StatusCode.USER_ALREADY_ACTIVE);
         }
-        otpService.issueRegisterCode(request.getEmail());
+        String code = otpService.issueRegisterCode(request.getEmail());
+        otpMailService.sendRegisterOtp(request.getEmail(), code);
         return new RegisterPendingResponse(true, request.getEmail(), otpTtlSeconds);
     }
 
@@ -75,7 +81,8 @@ public class AuthServiceImpl implements AuthService {
         if (!"ACTIVE".equalsIgnoreCase(u.getStatus())) {
             throw new CustomException(StatusCode.USER_NOT_ACTIVE);
         }
-        otpService.issueResetCode(u.getEmail());
+        String code = otpService.issueResetCode(u.getEmail());
+        otpMailService.sendResetOtp(u.getEmail(), code);
         return new RegisterPendingResponse(true, u.getEmail(), otpTtlSeconds);
     }
 

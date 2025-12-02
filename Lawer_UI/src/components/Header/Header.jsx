@@ -29,8 +29,8 @@ const Header = () => {
           <Link to="/" className="header__logo">
             <div className="header__logo-mark">VL</div>
             <div className="header__logo-text">
-              <span className="header__logo-title">VN Law RAG</span>
-              <span className="header__logo-sub">Cổng gateway</span>
+              <span className="header__logo-title">VN Law</span>
+              <span className="header__logo-sub">Nền tảng pháp luật số</span>
             </div>
           </Link>
         </div>
@@ -43,9 +43,6 @@ const Header = () => {
                   Admin
                 </NavLink>
               )}
-              <NavLink to="/rag" className="header__link header__link--ghost">
-                RAG Chat
-              </NavLink>
               <div className="header__avatar" onClick={() => setOpenUser((v) => !v)}>
                 {initials}
               </div>

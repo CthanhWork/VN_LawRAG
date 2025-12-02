@@ -7,13 +7,13 @@ const LawUploadForm = ({ uploadState, setUploadState, onUpload, disabled }) => (
     />
     <input
       type="text"
-      placeholder="Ma van ban"
+      placeholder="Mã văn bản"
       value={uploadState.code}
       onChange={(e) => setUploadState((prev) => ({ ...prev, code: e.target.value }))}
     />
     <input
       type="text"
-      placeholder="Tieu de"
+      placeholder="Tiêu đề"
       value={uploadState.title}
       onChange={(e) => setUploadState((prev) => ({ ...prev, title: e.target.value }))}
     />
@@ -24,7 +24,7 @@ const LawUploadForm = ({ uploadState, setUploadState, onUpload, disabled }) => (
     />
     <input
       type="text"
-      placeholder="Loai van ban (LAW,DECREE...)"
+      placeholder="Loại văn bản (LAW, DECREE...)"
       value={uploadState.docType}
       onChange={(e) => setUploadState((prev) => ({ ...prev, docType: e.target.value }))}
     />
@@ -34,10 +34,10 @@ const LawUploadForm = ({ uploadState, setUploadState, onUpload, disabled }) => (
         checked={uploadState.replaceExisting}
         onChange={(e) => setUploadState((prev) => ({ ...prev, replaceExisting: e.target.checked }))}
       />
-      <span>Ghi de neu ton tai</span>
+      <span>Ghi đè nếu tồn tại</span>
     </label>
     <button type="submit" className="admin__btn" disabled={uploadState.loading || disabled}>
-      {uploadState.loading ? 'Dang tai len...' : 'Tai len'}
+      {uploadState.loading ? 'Đang tải lên...' : 'Tải lên'}
     </button>
     {uploadState.error && <div className="admin__alert admin__alert--error">{uploadState.error}</div>}
     {uploadState.message && <div className="admin__alert admin__alert--success">{uploadState.message}</div>}

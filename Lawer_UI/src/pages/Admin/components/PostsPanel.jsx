@@ -55,7 +55,7 @@ const PostsPanel = () => {
       setListState((prev) => ({
         ...prev,
         loading: false,
-        error: pickError(err, 'Khong tai duoc bai viet'),
+        error: pickError(err, 'Không tải được bài viết'),
       }));
     }
   };
@@ -99,7 +99,11 @@ const PostsPanel = () => {
     } catch (err) {
       setComments((prev) => ({
         ...prev,
-        [postId]: { ...(prev[postId] || {}), loading: false, error: pickError(err, 'Khong tai duoc binh luan') },
+        [postId]: {
+          ...(prev[postId] || {}),
+          loading: false,
+          error: pickError(err, 'Không tải được bình luận'),
+        },
       }));
     }
   };
@@ -127,7 +131,7 @@ const PostsPanel = () => {
       setDetailState((prev) => ({
         ...prev,
         loading: false,
-        error: pickError(err, 'Khong tai duoc bai viet'),
+        error: pickError(err, 'Không tải được bài viết'),
       }));
     }
     loadComments(post.id);
@@ -146,19 +150,19 @@ const PostsPanel = () => {
           p.id === updated.id ? { ...p, visibility: updated.visibility } : p,
         ),
       }));
-      setDetailState((prev) => ({ ...prev, saving: false, message: 'Da cap nhat hien thi' }));
+      setDetailState((prev) => ({ ...prev, saving: false, message: 'Đã cập nhật hiển thị' }));
     } catch (err) {
       setDetailState((prev) => ({
         ...prev,
         saving: false,
-        error: pickError(err, 'Khong cap nhat duoc hien thi'),
+        error: pickError(err, 'Không cập nhật được hiển thị'),
       }));
     }
   };
 
   const handleDeletePost = async () => {
     if (!selectedPost) return;
-    const confirmed = window.confirm('Xoa bai viet? Khong the khoi phuc.');
+    const confirmed = window.confirm('Xóa bài viết? Hành động này không thể hoàn tác.');
     if (!confirmed) return;
     setDetailState((prev) => ({ ...prev, deleting: true, message: '', error: '' }));
     try {
@@ -174,12 +178,12 @@ const PostsPanel = () => {
         return next;
       });
       setSelectedPost(null);
-      setDetailState((prev) => ({ ...prev, deleting: false, message: 'Da xoa bai' }));
+      setDetailState((prev) => ({ ...prev, deleting: false, message: 'Đã xóa bài' }));
     } catch (err) {
       setDetailState((prev) => ({
         ...prev,
         deleting: false,
-        error: pickError(err, 'Khong xoa duoc bai'),
+        error: pickError(err, 'Không xóa được bài'),
       }));
     }
   };
@@ -201,7 +205,7 @@ const PostsPanel = () => {
         },
       }));
     } catch (err) {
-      setDetailState((prev) => ({ ...prev, error: pickError(err, 'Khong xoa duoc binh luan') }));
+      setDetailState((prev) => ({ ...prev, error: pickError(err, 'Không xóa được bình luận') }));
       setComments((prev) => ({
         ...prev,
         [selectedPost.id]: { ...(prev[selectedPost.id] || {}), deleting: null },
@@ -215,22 +219,22 @@ const PostsPanel = () => {
     <div className="admin__panel">
       <form className="admin__filters" onSubmit={handleApplyFilters}>
         <label className="admin__filter">
-          <span>ID tac gia</span>
+          <span>ID tác giả</span>
           <input
             type="number"
             min="0"
-            placeholder="Tat ca"
+            placeholder="Tất cả"
             value={search.authorId}
             onChange={(e) => setSearch((prev) => ({ ...prev, authorId: e.target.value }))}
           />
         </label>
         <label className="admin__filter">
-          <span>Che do hien thi</span>
+          <span>Chế độ hiển thị</span>
           <select
             value={search.visibility}
             onChange={(e) => setSearch((prev) => ({ ...prev, visibility: e.target.value }))}
           >
-            <option value="">Tat ca</option>
+            <option value="">Tất cả</option>
             {VISIBILITY_OPTIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
@@ -240,10 +244,10 @@ const PostsPanel = () => {
         </label>
         <div className="admin__filter admin__filter--actions">
           <button type="submit" className="admin__btn">
-            Loc
+            Lọc
           </button>
           <button type="button" className="admin__btn admin__btn--ghost" onClick={handleResetFilters}>
-            Xoa loc
+            Xóa lọc
           </button>
         </div>
       </form>
@@ -252,8 +256,8 @@ const PostsPanel = () => {
         <div className="admin__card">
           <div className="admin__card-header">
             <div>
-              <div className="admin__eyebrow">Bai viet</div>
-              <div className="admin__card-title">Danh sach bai viet</div>
+              <div className="admin__eyebrow">Bài viết</div>
+              <div className="admin__card-title">Danh sách bài viết</div>
             </div>
             <div className="admin__card-actions">
               <button
@@ -262,7 +266,7 @@ const PostsPanel = () => {
                 onClick={() => fetchPosts(listState.page)}
                 disabled={listState.loading}
               >
-                Tai lai
+                Tải lại
               </button>
               <Pager state={listState} onPrev={() => fetchPosts(listState.page - 1)} onNext={() => fetchPosts(listState.page + 1)} />
             </div>
@@ -274,24 +278,24 @@ const PostsPanel = () => {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Tac gia</th>
-                  <th>Che do</th>
-                  <th>Luot thich</th>
-                  <th>Binh luan</th>
-                  <th>Cap nhat</th>
+                  <th>Tác giả</th>
+                  <th>Chế độ</th>
+                  <th>Lượt thích</th>
+                  <th>Bình luận</th>
+                  <th>Cập nhật</th>
                 </tr>
               </thead>
               <tbody>
                 {listState.loading ? (
                   <tr>
                     <td colSpan="6" className="admin__muted">
-                      Dang tai bai viet...
+                      Đang tải bài viết...
                     </td>
                   </tr>
                 ) : listState.items.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="admin__muted">
-                      Khong co bai viet.
+                      Không có bài viết.
                     </td>
                   </tr>
                 ) : (
@@ -328,7 +332,7 @@ const PostsPanel = () => {
             <div>
               <div className="admin__eyebrow">Chi tiet bai viet</div>
               <div className="admin__card-title">
-                {selectedPost ? `Bai #${selectedPost.id}` : 'Chon bai viet'}
+                {selectedPost ? `Bài #${selectedPost.id}` : 'Chọn bài viết'}
               </div>
             </div>
             {selectedPost && (
@@ -337,35 +341,35 @@ const PostsPanel = () => {
           </div>
 
           {!selectedPost ? (
-            <p className="admin__muted">Chon bai viet de xem quyen hien thi va binh luan.</p>
+            <p className="admin__muted">Chọn bài viết để xem quyền hiển thị và bình luận.</p>
           ) : (
             <>
               <div className="admin__meta admin__meta--grid">
                 <div>
-                  <div className="admin__label">Tac gia</div>
+                  <div className="admin__label">Tác giả</div>
                   <div className="admin__value">#{selectedPost.authorId}</div>
                 </div>
                 <div>
-                  <div className="admin__label">Luot thich</div>
+                  <div className="admin__label">Lượt thích</div>
                   <div className="admin__value">{selectedPost.likeCount ?? 0}</div>
                 </div>
                 <div>
-                  <div className="admin__label">Binh luan</div>
+                  <div className="admin__label">Bình luận</div>
                   <div className="admin__value">{selectedPost.commentCount ?? 0}</div>
                 </div>
                 <div>
-                  <div className="admin__label">Tao</div>
+                  <div className="admin__label">Tạo</div>
                   <div className="admin__value">{formatDate(selectedPost.createdAt)}</div>
                 </div>
                 <div>
-                  <div className="admin__label">Cap nhat</div>
+                  <div className="admin__label">Cập nhật</div>
                   <div className="admin__value">{formatDate(selectedPost.updatedAt)}</div>
                 </div>
               </div>
 
               <div className="admin__post-content">
-                <div className="admin__label">Noi dung</div>
-                <div className="admin__value admin__value--box">{selectedPost.content || '(Khong co noi dung)'}</div>
+                <div className="admin__label">Nội dung</div>
+                <div className="admin__value admin__value--box">{selectedPost.content || '(Không có nội dung)'}</div>
               </div>
 
               {detailState.error && <div className="admin__alert admin__alert--error">{detailState.error}</div>}
@@ -375,7 +379,7 @@ const PostsPanel = () => {
 
               <div className="admin__form admin__form--split">
                 <label>
-                  <span>Che do hien thi</span>
+                  <span>Chế độ hiển thị</span>
                   <select
                     value={detailState.visibilityInput}
                     onChange={(e) => setDetailState((prev) => ({ ...prev, visibilityInput: e.target.value }))}
@@ -393,7 +397,7 @@ const PostsPanel = () => {
                   onClick={handleUpdateVisibility}
                   disabled={detailState.saving || detailState.loading}
                 >
-                  {detailState.saving ? 'Dang luu...' : 'Cap nhat hien thi'}
+                  {detailState.saving ? 'Đang lưu...' : 'Cập nhật hiển thị'}
                 </button>
                 <button
                   type="button"
@@ -401,16 +405,16 @@ const PostsPanel = () => {
                   onClick={handleDeletePost}
                   disabled={detailState.deleting}
                 >
-                  {detailState.deleting ? 'Dang xoa...' : 'Xoa bai'}
+                  {detailState.deleting ? 'Đang xóa...' : 'Xóa bài'}
                 </button>
               </div>
 
               <div className="admin__comments">
                 <div className="admin__card-header">
                   <div>
-                    <div className="admin__eyebrow">Binh luan</div>
+                    <div className="admin__eyebrow">Bình luận</div>
                     <div className="admin__card-title">
-                      {selectedComments?.list?.length || 0} binh luan
+                      {selectedComments?.list?.length || 0} bình luận
                     </div>
                   </div>
                   <button
@@ -419,7 +423,7 @@ const PostsPanel = () => {
                     onClick={() => loadComments(selectedPost.id)}
                     disabled={selectedComments?.loading}
                   >
-                    Tai lai binh luan
+                    Tải lại bình luận
                   </button>
                 </div>
 
@@ -429,7 +433,7 @@ const PostsPanel = () => {
 
                 <div className="admin__comment-list">
                   {selectedComments?.loading ? (
-                    <div className="admin__muted">Dang tai binh luan...</div>
+                    <div className="admin__muted">Đang tải bình luận...</div>
                   ) : selectedComments?.list?.length ? (
                     selectedComments.list.map((comment) => (
                       <div key={comment.id} className="admin__comment">
@@ -437,7 +441,7 @@ const PostsPanel = () => {
                           <div className="admin__label">#{comment.id}</div>
                           <div className="admin__value admin__value--box">{comment.content}</div>
                           <div className="admin__muted">
-                            Tac gia #{comment.authorId} - {formatDate(comment.createdAt)}
+                            Tác giả #{comment.authorId} - {formatDate(comment.createdAt)}
                           </div>
                         </div>
                         <button
@@ -446,12 +450,12 @@ const PostsPanel = () => {
                           disabled={selectedComments?.deleting === comment.id}
                           onClick={() => handleDeleteComment(comment.id)}
                         >
-                          {selectedComments?.deleting === comment.id ? 'Dang xoa...' : 'Xoa'}
+                          {selectedComments?.deleting === comment.id ? 'Đang xóa...' : 'Xóa'}
                         </button>
                       </div>
                     ))
                   ) : (
-                    <div className="admin__muted">Khong co binh luan.</div>
+                    <div className="admin__muted">Không có bình luận.</div>
                   )}
                 </div>
               </div>

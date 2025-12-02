@@ -23,8 +23,7 @@ const Register = () => {
     setError('');
     try {
       await register(form);
-      setMessage('Đăng ký thành công, vui lòng kiểm tra email để xác thực OTP.');
-      setTimeout(() => navigate('/login'), 700);
+      navigate('/verify-otp', { state: { email: form.email, from: 'register' } });
     } catch (err) {
       const fallback = 'Đăng ký thất bại. Kiểm tra lại thông tin.';
       const serverMsg = err?.response?.data?.message;

@@ -50,7 +50,7 @@ const UsersPanel = () => {
       setListState((prev) => ({
         ...prev,
         loading: false,
-        error: pickError(err, 'Khong tai duoc nguoi dung'),
+        error: pickError(err, 'Không tải được người dùng'),
       }));
     }
   };
@@ -97,7 +97,7 @@ const UsersPanel = () => {
       setDetailState((prev) => ({
         ...prev,
         loading: false,
-        error: pickError(err, 'Khong tai duoc thong tin nguoi dung'),
+        error: pickError(err, 'Không tải được thông tin người dùng'),
       }));
     }
   };
@@ -115,12 +115,12 @@ const UsersPanel = () => {
           u.id === updated.id ? { ...u, status: updated.status, roles: updated.roles } : u,
         ),
       }));
-      setDetailState((prev) => ({ ...prev, saving: false, message: 'Da cap nhat trang thai' }));
+      setDetailState((prev) => ({ ...prev, saving: false, message: 'Đã cập nhật trạng thái' }));
     } catch (err) {
       setDetailState((prev) => ({
         ...prev,
         saving: false,
-        error: pickError(err, 'Khong cap nhat duoc trang thai'),
+        error: pickError(err, 'Không cập nhật được trạng thái'),
       }));
     }
   };
@@ -138,12 +138,12 @@ const UsersPanel = () => {
           u.id === updated.id ? { ...u, status: updated.status, roles: updated.roles } : u,
         ),
       }));
-      setDetailState((prev) => ({ ...prev, saving: false, message: 'Da cap nhat vai tro' }));
+      setDetailState((prev) => ({ ...prev, saving: false, message: 'Đã cập nhật vai trò' }));
     } catch (err) {
       setDetailState((prev) => ({
         ...prev,
         saving: false,
-        error: pickError(err, 'Khong cap nhat duoc vai tro'),
+        error: pickError(err, 'Không cập nhật được vai trò'),
       }));
     }
   };
@@ -152,21 +152,21 @@ const UsersPanel = () => {
     <div className="admin__panel">
       <form className="admin__filters" onSubmit={handleApplyFilters}>
         <label className="admin__filter">
-          <span>Tu khoa</span>
+          <span>Từ khóa</span>
           <input
             type="text"
-            placeholder="Email hoac ten hien thi"
+            placeholder="Email hoặc tên hiển thị"
             value={search.keyword}
             onChange={(e) => setSearch((prev) => ({ ...prev, keyword: e.target.value }))}
           />
         </label>
         <label className="admin__filter">
-          <span>Trang thai</span>
+          <span>Trạng thái</span>
           <select
             value={search.status}
             onChange={(e) => setSearch((prev) => ({ ...prev, status: e.target.value }))}
           >
-            <option value="">Tat ca</option>
+            <option value="">Tất cả</option>
             {STATUS_OPTIONS.map((st) => (
               <option key={st} value={st}>
                 {st}
@@ -176,10 +176,10 @@ const UsersPanel = () => {
         </label>
         <div className="admin__filter admin__filter--actions">
           <button type="submit" className="admin__btn">
-            Loc
+            Lọc
           </button>
           <button type="button" className="admin__btn admin__btn--ghost" onClick={handleResetFilters}>
-            Xoa loc
+            Xóa lọc
           </button>
         </div>
       </form>
@@ -188,8 +188,8 @@ const UsersPanel = () => {
         <div className="admin__card">
           <div className="admin__card-header">
             <div>
-              <div className="admin__eyebrow">Nguoi dung</div>
-              <div className="admin__card-title">Nguoi dung moi nhat</div>
+              <div className="admin__eyebrow">Người dùng</div>
+              <div className="admin__card-title">Danh sách người dùng</div>
             </div>
             <div className="admin__card-actions">
               <button
@@ -198,7 +198,7 @@ const UsersPanel = () => {
                 onClick={() => fetchUsers(listState.page)}
                 disabled={listState.loading}
               >
-                Tai lai
+                Tải lại
               </button>
               <Pager state={listState} onPrev={() => fetchUsers(listState.page - 1)} onNext={() => fetchUsers(listState.page + 1)} />
             </div>
@@ -211,23 +211,23 @@ const UsersPanel = () => {
                 <tr>
                   <th>ID</th>
                   <th>Email</th>
-                  <th>Ten</th>
-                  <th>Trang thai</th>
-                  <th>Vai tro</th>
-                  <th>Tao luc</th>
+                  <th>Tên</th>
+                  <th>Trạng thái</th>
+                  <th>Vai trò</th>
+                  <th>Tạo lúc</th>
                 </tr>
               </thead>
               <tbody>
                 {listState.loading ? (
                   <tr>
                     <td colSpan="6" className="admin__muted">
-                      Dang tai nguoi dung...
+                      Đang tải người dùng...
                     </td>
                   </tr>
                 ) : listState.items.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="admin__muted">
-                      Khong co nguoi dung.
+                      Không có người dùng.
                     </td>
                   </tr>
                 ) : (
@@ -263,16 +263,16 @@ const UsersPanel = () => {
         <div className="admin__card admin__card--detail">
           <div className="admin__card-header">
             <div>
-              <div className="admin__eyebrow">Chi tiet nguoi dung</div>
+              <div className="admin__eyebrow">Chi tiết người dùng</div>
               <div className="admin__card-title">
-                {selectedUser ? selectedUser.displayName || selectedUser.email : 'Chon nguoi dung'}
+                {selectedUser ? selectedUser.displayName || selectedUser.email : 'Chọn người dùng'}
               </div>
             </div>
             {selectedUser && <span className="pill pill--outline">#{selectedUser.id}</span>}
           </div>
 
           {!selectedUser ? (
-            <p className="admin__muted">Chon nguoi dung de xem chi tiet va quan tri.</p>
+            <p className="admin__muted">Chọn người dùng để xem chi tiết và quản trị.</p>
           ) : (
             <>
               <div className="admin__meta">
@@ -281,7 +281,7 @@ const UsersPanel = () => {
                   <div className="admin__value">{selectedUser.email}</div>
                 </div>
                 <div>
-                  <div className="admin__label">Trang thai</div>
+                  <div className="admin__label">Trạng thái</div>
                   <div className="admin__value">
                     <span className={`pill pill--${(selectedUser.status || '').toLowerCase() || 'muted'}`}>
                       {selectedUser.status}
@@ -289,7 +289,7 @@ const UsersPanel = () => {
                   </div>
                 </div>
                 <div>
-                  <div className="admin__label">Vai tro</div>
+                  <div className="admin__label">Vai trò</div>
                   <div className="admin__value admin__chips">
                     {parseRoles(selectedUser.roles).map((r) => (
                       <span key={r} className="pill pill--soft">
@@ -299,11 +299,11 @@ const UsersPanel = () => {
                   </div>
                 </div>
                 <div>
-                  <div className="admin__label">Tao luc</div>
+                  <div className="admin__label">Tạo lúc</div>
                   <div className="admin__value">{formatDate(selectedUser.createdAt)}</div>
                 </div>
                 <div>
-                  <div className="admin__label">Cap nhat</div>
+                  <div className="admin__label">Cập nhật</div>
                   <div className="admin__value">{formatDate(selectedUser.updatedAt)}</div>
                 </div>
               </div>
@@ -315,7 +315,7 @@ const UsersPanel = () => {
 
               <div className="admin__form">
                 <label>
-                  <span>Trang thai</span>
+                  <span>Trạng thái</span>
                   <select
                     value={detailState.statusInput}
                     onChange={(e) => setDetailState((prev) => ({ ...prev, statusInput: e.target.value }))}
@@ -333,13 +333,13 @@ const UsersPanel = () => {
                   onClick={handleUpdateStatus}
                   disabled={detailState.saving || detailState.loading}
                 >
-                  {detailState.saving ? 'Dang luu...' : 'Cap nhat trang thai'}
+                  {detailState.saving ? 'Đang lưu...' : 'Cập nhật trạng thái'}
                 </button>
               </div>
 
               <div className="admin__form">
                 <label>
-                  <span>Vai tro</span>
+                  <span>Vai trò</span>
                   <input
                     type="text"
                     placeholder="ADMIN,USER"
@@ -353,7 +353,7 @@ const UsersPanel = () => {
                   onClick={handleUpdateRoles}
                   disabled={detailState.saving || detailState.loading}
                 >
-                  {detailState.saving ? 'Dang luu...' : 'Cap nhat vai tro'}
+                  {detailState.saving ? 'Đang lưu...' : 'Cập nhật vai trò'}
                 </button>
               </div>
             </>

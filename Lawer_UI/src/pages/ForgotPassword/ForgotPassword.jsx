@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { requestForgotPassword } from '../../services/authService';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import './ForgotPassword.css';
 
 const ForgotPassword = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -17,7 +18,7 @@ const ForgotPassword = () => {
     setError('');
     try {
       await requestForgotPassword(email);
-      setMessage('Đã gửi OTP đặt lại mật khẩu. Kiểm tra email của bạn.');
+      navigate('/reset-password', { state: { email, from: 'forgot' } });
     } catch (err) {
       const fallback = 'Không thể gửi OTP. Kiểm tra lại email.';
       const serverMsg = err?.response?.data?.message;
@@ -47,7 +48,7 @@ const ForgotPassword = () => {
         {message && <div className="auth__alert auth__alert--success">{message}</div>}
         {error && <div className="auth__alert auth__alert--error">{error}</div>}
         <div className="auth__extra">
-          Nhớ mật khẩu? <Link to="/login">Đăng nhập</Link> ·{' '}
+          Nhớ mật khẩu? <Link to="/login">Đăng nhập</Link> •{' '}
           <Link to="/reset-password">Nhập mã OTP</Link>
         </div>
       </form>

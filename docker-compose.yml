@@ -101,6 +101,8 @@ services:
 
   social-service:
     build: ./services/social-service
+    env_file:
+      - .env
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/laws?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
       - SPRING_DATASOURCE_USERNAME=app
