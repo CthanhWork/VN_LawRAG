@@ -29,9 +29,13 @@ const Login = () => {
     try {
       const data = await login(form);
       const token = data?.data?.token || data?.token;
+      const refresh = data?.data?.refreshToken || data?.refreshToken;
       if (token) {
         localStorage.setItem('accessToken', token);
         await checkTokenAndSetUser();
+      }
+      if (refresh) {
+        localStorage.setItem('refreshToken', refresh);
       }
       setMessage('Đăng nhập thành công');
       setTimeout(() => navigate(redirectPath), 400);

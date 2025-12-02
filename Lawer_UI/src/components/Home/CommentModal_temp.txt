@@ -1,0 +1,127 @@
+﻿import { useEffect } from 'react';
+import { serviceBaseUrls } from '../../configs/serviceMap';
+import { CloseIcon, SendIcon } from './BentoIcons';
+import './HomeShared.css';
+
+const formatTime = (value) => {
+  if (!value) return 'Vá»«a xong';
+  try {
+    return new Date(value).toLocaleString('vi-VN', { hour12: false });
+  } catch (e) {
+    return 'Vá»«a xong';
+  }
+};
+
+const CommentModal = ({
+  post,
+  commentState,
+  commentInput,
+  onChangeInput,
+  onSubmit,
+  onClose,
+}) => {
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  if (!post) return null;
+  const list = commentState?.list || [];
+  const authorName = post.authorName || post.author?.displayName || `NgÆ°á»i dÃ¹ng #${post.authorId}`;
+  const authorInitial = (authorName || 'U')[0]?.toUpperCase();
+
+  const renderMedia = () => {
+    if (!post.media || !post.media.length) return null;
+    const items = Array.isArray(post.media) ? post.media : [post.media];
+    return (
+      <div className="home-modal__media-grid">
+        {items.map((media) => {
+          const isVideo =
+            media.mediaType === 'VIDEO' || (media.mimeType && media.mimeType.toLowerCase().includes('video'));
+          const mediaUrl = media.url?.startsWith('http')
+            ? media.url
+            : `${serviceBaseUrls.social || ''}${media.url || ''}`;
+          return (
+            <div key={media.id || media.url} className="home-feed__media home-modal__media">
+              {isVideo ? <video src={mediaUrl} controls /> : <img src={mediaUrl} alt="Media" loading="lazy" />}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="home-modal__overlay" onClick={onClose}>
+      <div className="home-modal home-modal--comments" onClick={(e) => e.stopPropagation()}>
+        <div className="home-modal__header">
+          <div className="home-comment__head">
+            <div className="bento-avatar bento-avatar--small">{authorInitial}</div>
+            <div>
+              <div className="home-feed__name">{authorName}</div>
+              <div className="home-feed__muted">{formatTime(post.createdAt)}</div>
+            </div>
+          </div>
+          <button type="button" className="home-modal__close" onClick={onClose} aria-label="ÄÃ³ng bÃ¬nh luáº­n">
+            <CloseIcon size={18} />
+          </button>
+        </div>
+
+        <div className="home-modal__post">
+          <p className="home-card__content">{post.content}</p>
+          {renderMedia()}
+        </div>
+
+        <div className="home-modal__comments-body">
+          <div className="home-feed__comments home-comments__list">
+            {commentState?.loading && <div className="home-feed__comment-loading">Äang táº£i bÃ¬nh luáº­n...</div>}
+            {commentState?.error && <div className="home-feed__comment-error">{commentState.error}</div>}
+            {!commentState?.loading && !commentState?.error && list.length === 0 && (
+              <div className="home-feed__comment-empty">ChÆ°a cÃ³ bÃ¬nh luáº­n</div>
+            )}
+            {!commentState?.loading &&
+              !commentState?.error &&
+              list.map((cmt) => (
+                <div key={cmt.id} className="home-feed__comment">
+                  <div className="home-feed__comment-avatar">{String(cmt.authorId || 'U').slice(0, 2)}</div>
+                  <div className="home-feed__comment-body">
+                    <div className="home-feed__comment-meta">
+                      <span className="home-feed__comment-author">
+                        {cmt.authorName || `NgÆ°á»i dÃ¹ng #${cmt.authorId}`}
+                      </span>
+                      <span className="home-feed__comment-time">{formatTime(cmt.createdAt)}</span>
+                    </div>
+                    <div className="home-feed__comment-text">{cmt.content}</div>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          <form
+            className="home-feed__comment-form home-comment__form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSubmit(post.id);
+            }}
+          >
+            <div className="home-feed__comment-avatar home-comment__avatar">{authorInitial}</div>
+            <input
+              className="home-feed__comment-input"
+              placeholder="Viáº¿t bÃ¬nh luáº­n..."
+              value={commentInput || ''}
+              onChange={(e) => onChangeInput(post.id, e.target.value)}
+            />
+            <button type="submit">
+              <SendIcon size={18} />
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CommentModal;

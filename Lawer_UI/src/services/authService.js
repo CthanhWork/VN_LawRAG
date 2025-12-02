@@ -8,14 +8,19 @@ export const login = async (credentials) => {
   });
   const payload = response.data;
   const token = payload?.data?.token || payload?.token;
+  const refresh = payload?.data?.refreshToken || payload?.refreshToken;
   if (token) {
     localStorage.setItem('accessToken', token);
+  }
+  if (refresh) {
+    localStorage.setItem('refreshToken', refresh);
   }
   return payload;
 };
 
 export const logout = async () => {
   localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
   return { success: true };
 };
 

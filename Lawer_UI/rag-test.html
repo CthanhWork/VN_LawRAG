@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chí Thanh DEV - RAG Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      /* --- Biến CSS (LIGHT MODE) --- */
+      :root {
+        --bg: #f4f6f8;        /* Light Gray/Off-White background */
+        --panel: #ffffff;     /* White panels */
+        --text: #1f2937;    
+        --muted: #6b7280;     
+        --border: #e5e7eb;   
+        --accent: #10b981;    
+        --accent-dark: #059669;
+        --radius-panel: 16px;
+        --radius-input: 10px;
+        --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      /* --- Cấu trúc chung --- */
+      .page {
+        max-width: 1100px; /* Tăng chiều rộng tối đa */
+        margin: 0 auto;
+        padding: 40px 24px 60px;
+      }
+      h1 {
+        font-size: 2.2rem;
+        margin: 0 0 4px;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        color: var(--accent-dark); /* Màu nổi bật cho tiêu đề */
+      }
+      .muted { color: var(--muted); font-size: 14px; }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-panel);
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      /* --- Form và Input --- */
+      label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: block;
+        margin-bottom: 8px;
+        color: var(--text);
+        margin-top: 15px;
+      }
+      label:first-of-type { margin-top: 0; }
+      input, textarea {
+        width: 100%;
+        font-size: 1rem;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--border);
+        padding: 12px 14px;
+        background: var(--panel);
+        color: var(--text);
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      input:focus, textarea:focus {
+        border-color: var(--accent);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); /* Shadow xanh lá */
+      }
+      textarea {
+        min-height: 200px; /* Tăng chiều cao mặc định */
+        resize: vertical;
+      }
+
+      /* --- Nút bấm --- */
+      button {
+        width: 100%;
+        background: var(--accent);
+        border: none;
+        font-weight: 700;
+        cursor: pointer;
+        margin-top: 20px;
+        padding: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: white;
+        border-radius: var(--radius-input);
+        transition: background 0.2s, transform 0.1s;
+      }
+      button:hover:not(:disabled) {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+      }
+      button:disabled {
+        background: var(--border);
+        color: var(--muted);
+        cursor: not-allowed;
+        opacity: 0.8;
+      }
+
+      /* --- Kết quả và Cấu trúc Grid --- */
+      .grid {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: 5fr 7fr;
+      }
+
+      /* --- Phong cách "Chat/Tư vấn" cho output --- */
+      .output-wrapper {
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+      }
+      .answer-box {
+        background: var(--bg); /* Màu nền nhạt để tạo cảm giác 'bubble' */
+        padding: 18px;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--border);
+        white-space: pre-wrap;
+        line-height: 1.7;
+        flex-grow: 1; /* Để ô trả lời chiếm không gian còn lại */
+        margin-bottom: 15px;
+        font-size: 1rem;
+      }
+      .answer-box.loading {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      /* --- Thẻ thông tin (Tags) --- */
+      .tag-container {
+        margin-bottom: 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border: 1px solid #a7f3d0; /* Light blue border */
+        border-radius: 999px;
+        background: #ecfdf5; /* Very light blue background */
+        color: var(--accent-dark);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      /* --- Citations (Trích dẫn) --- */
+      .cites-title {
+        color: var(--text);
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+      }
+      .list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .item {
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--accent); /* Điểm nhấn chat */
+        border-radius: var(--radius-input);
+        padding: 12px 15px;
+        background: #fcfcfc;
+        font-size: 0.95rem;
+      }
+      .item strong {
+        color: var(--accent-dark);
+        font-size: 1rem;
+        display: block;
+        margin-bottom: 2px;
+        font-weight: 600;
+      }
+      .item .muted {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      /* --- Media Query --- */
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+        .page { padding: 20px 16px 40px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Hoàng Chí Thanh DEV</h1>
+      <div class="muted" style="margin-bottom:25px;">
+        Giao diện thử nghiệm RAG thủ công. API Base: `http://localhost:8080/api/qa`.
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <label for="question">Câu hỏi (Input)</label>
+          <textarea id="question" placeholder="Nhập câu hỏi pháp lý của bạn vào đây..."></textarea>
+
+          <label for="effectiveAt">Ngày hiệu lực (Tùy chọn)</label>
+          <input id="effectiveAt" type="date" placeholder="YYYY-MM-DD" />
+          
+          <button id="sendBtn">GỬI</button>
+          
+          <div id="status" class="muted" style="margin-top:15px; text-align: center;"></div>
+        </div>
+
+        <div class="panel">
+          <div class="muted" style="margin-bottom:10px; font-weight: 600;">🤖 Câu trả lời từ Hệ thống RAG</div>
+          
+          <div class="output-wrapper">
+            <div id="answer" class="answer-box loading">
+              Câu trả lời sẽ được hiển thị tại đây sau khi bạn GỬI câu hỏi.
+            </div>
+
+            <div id="meta" class="tag-container"></div>
+            
+            <div id="cites"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const qs = (id) => document.getElementById(id);
+      const question = qs('question');
+      const effectiveAt = qs('effectiveAt');
+      const sendBtn = qs('sendBtn');
+      const statusEl = qs('status');
+      const answerEl = qs('answer');
+      const metaEl = qs('meta');
+      const citesEl = qs('cites');
+      
+      // Khởi tạo giá trị mặc định cho textarea
+      question.value = "Tôi là anh K, sau ly hôn chị L đang nuôi con. Chị L cản trở tôi thăm nom và tôi nghi ngờ tiền cấp dưỡng không dùng cho con. Tôi có thể làm gì?";
+
+      // Xử lý API BASE
+      const urlParams = new URLSearchParams(window.location.search);
+      const apiOverride = urlParams.get('apiBase');
+      const API_BASE = (apiOverride || 'http://localhost:8080/api/qa').replace(/\/$/, '');
+
+      if (window.location.protocol === 'file:') {
+        statusEl.innerHTML = '❌ Đang mở qua `file://`. Hãy serve file này qua `http://` để tránh lỗi CORS.<br>API Base: ' + API_BASE;
+      } else {
+         statusEl.textContent = 'Sẵn sàng.';
+      }
+
+      async function callRag() {
+        statusEl.textContent = '';
+        answerEl.textContent = '';
+        metaEl.innerHTML = '';
+        citesEl.innerHTML = '';
+        answerEl.classList.add('loading');
+        answerEl.textContent = 'Đang xử lý...';
+
+
+        const q = question.value.trim();
+        if (!q) { statusEl.textContent = '❗ Vui lòng nhập câu hỏi.'; return; }
+
+        sendBtn.disabled = true;
+        statusEl.textContent = 'Đang gửi và chờ phản hồi...';
+        
+        try {
+          const params = new URLSearchParams();
+          if (!API_BASE.includes('k=')) params.set('k', '10'); 
+          if (effectiveAt.value) params.set('effectiveAt', effectiveAt.value);
+          
+          const url = `${API_BASE}/analyze${params.toString() ? '?' + params.toString() : ''}`;
+          
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: q }),
+          });
+          
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data?.message || 'Lỗi API không xác định');
+          
+          const payload = data?.data || data;
+          answerEl.textContent = payload?.answer || 'Không có câu trả lời.';
+          
+          // Hiển thị Meta tags
+          if (payload?.decision || payload?.effectiveAt) {
+              let metaTags = '';
+              if (payload.decision) metaTags += `<span class="tag">Decision: ${payload.decision}</span>`;
+              if (payload.effectiveAt) metaTags += `<span class="tag">Effective: ${payload.effectiveAt}</span>`;
+              metaEl.innerHTML = metaTags;
+          }
+          
+          // Hiển thị Citations
+          const cites = payload?.citations || [];
+          if (cites.length) {
+            citesEl.innerHTML = '<div class="cites-title">📚 Tài liệu Trích dẫn</div>' +
+              '<ul class="list">' +
+              cites.map((c) => `
+                <li class="item">
+                  <strong>${c.lawCode || 'N/A'}</strong>
+                  <div class="muted">${c.nodePath || ''}</div>
+                  ${c.nodeId ? `<div class="muted">Node ID: ${c.nodeId}</div>` : ''}
+                </li>
+              `).join('') +
+              '</ul>';
+          }
+          statusEl.textContent = '✅ Hoàn thành.';
+          
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = '❌ Lỗi: ' + (err.message || 'Không thể kết nối đến API.');
+          answerEl.textContent = 'Đã xảy ra lỗi khi gọi API. Vui lòng kiểm tra console hoặc đường dẫn API.';
+        } finally {
+          sendBtn.disabled = false;
+          answerEl.classList.remove('loading');
+        }
+      }
+
+      sendBtn.addEventListener('click', callRag);
+    </script>
+  </body>
+</html>

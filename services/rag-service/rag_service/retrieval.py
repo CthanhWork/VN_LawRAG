@@ -12,7 +12,6 @@ from .utils import (
     parse_date,
     penalize_noise,
     penalize_offtopic,
-    detect_polygamy_intent,
 )
 from .llm_qu import query_understanding_llm
 from . import config as _cfg
@@ -514,36 +513,13 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
         ]
 
     qu = query_understanding_llm(question, effective_at)
+    # domain_patterns hỗ trợ thêm các từ khóa/chủ đề phổ biến (không hard-code case)
     pat_q, pat_must, pat_codes, pat_intent = state.apply_domain_patterns(question)
-    is_poly = detect_polygamy_intent(question, pat_intent, pat_q, pat_must)
-    q_norm = norm_text(question)
-    is_marriage_cond = (
-        "dieu kien ket hon" in q_norm
-        or "dang ky ket hon" in q_norm
-        or "tuoi ket hon" in q_norm
-        or any("dieu 8" in norm_text(x) for x in (pat_q or []))
-    )
     qu_queries: List[str] = []
     qu_keywords: List[str] = []
     qu_must: List[str] = []
     qu_law_codes: List[str] = []
     eff_override = None
-    if is_poly:
-        extra_queries = [
-            "che do mot vo mot chong",
-            "cam nguoi dang co vo hoac co chong ket hon hoac chung song nhu vo chong voi nguoi khac",
-            "dieu 5 luat hon nhan va gia dinh cac hanh vi bi cam",
-            "dieu 2 luat hon nhan va gia dinh nguyen tac hon nhan",
-        ]
-        qu_queries = (qu_queries or []) + extra_queries
-        if not qu_must:
-            qu_must = [
-                "mot vo mot chong",
-                "cac hanh vi bi cam",
-                "dang co vo",
-                "dang co chong",
-                "chung song nhu vo chong",
-            ]
     if qu:
         try:
             _qs = list(qu.get("subqueries") or [])
@@ -561,7 +537,8 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
         except Exception:
             pass
 
-    # Xây tập truy vấn dựa trên kết quả LLM (từ khóa + subqueries) và patterns
+    # Xây tập truy vấn dựa trên kết quả LLM (từ khóa + subqueries) và patterns,
+    # không hard-code theo từng case cụ thể.
     queries: List[str] = []
     for kw in (qu_keywords or []):
         if kw:
@@ -610,30 +587,9 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
                 sim = boost_with_must_phrases_norm(text or "", sim, qu_must)
             if pat_must:
                 sim = boost_with_must_phrases_norm(text or "", sim, pat_must)
-            try:
-                if is_poly:
-                    path = (m.get("node_path") if m else "") or ""
-                    p_norm = norm_text(path)
-                    t_norm = norm_text(text or "")
-                    if "dieu 5" in p_norm or "cac hanh vi bi cam" in t_norm:
-                        sim = min(1.0, sim + 0.08)
-                if is_marriage_cond:
-                    path = (m.get("node_path") if m else "") or ""
-                    p_norm2 = norm_text(path)
-                    t_norm2 = norm_text(text or "")
-                    if "dieu 8" in p_norm2:
-                        sim = min(1.0, sim + 0.20)
-                    if "dieu kien ket hon" in t_norm2:
-                        sim = min(1.0, sim + 0.12)
-                    if "nam tu du 20" in t_norm2:
-                        sim = min(1.0, sim + 0.08)
-                    if "nu tu du 18" in t_norm2:
-                        sim = min(1.0, sim + 0.08)
-            except Exception:
-                pass
+            # Áp dụng các penalize/boost generically, không cứng theo từng kịch bản
             sim = penalize_noise(text or "", sim)
-            if is_poly:
-                sim = penalize_offtopic(text or "", sim)
+            sim = penalize_offtopic(text or "", sim)
             if node_id not in merged or sim > merged[node_id]["_sim"]:
                 merged[node_id] = {
                     "law_code": m.get("law_code") if m else None,
@@ -660,60 +616,6 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
         if s <= eff_date <= e:
             filtered.append(it)
     items = filtered or candidates
-
-    # Extra deterministic retrieval cho các case vi phạm chế độ một vợ một chồng:
-    # nếu câu hỏi thể hiện ý định "polygamy" (is_poly=True) thì bổ sung
-    # các node tìm trực tiếp từ law-service theo cụm từ khóa mạnh.
-    if is_poly:
-        try:
-            poly_keywords = [
-                "mot vo mot chong",
-                "che do mot vo mot chong",
-                "chung song nhu vo chong",
-            ]
-            seen_extra: Set[int] = set()
-            extra_items: List[Dict[str, Any]] = []
-            eff_str = eff_date.isoformat()
-            for kw in poly_keywords:
-                nodes = _search_nodes(kw, effective_at=eff_str, page=0, size=5)
-                for n in nodes:
-                    try:
-                        nid = int(n.get("id"))
-                    except Exception:
-                        continue
-                    if nid in seen_extra:
-                        continue
-                    seen_extra.add(nid)
-                    law_id = n.get("lawId")
-                    law_code = _law_id_to_code(law_id) or ""
-                    doc_type = _law_id_to_doc_type(law_id) or "LAW"
-                    node_path = (n.get("path") or "").strip()
-                    content = (n.get("contentText") or n.get("contentHtml") or "").strip()
-                    if not content:
-                        continue
-                    extra_items.append(
-                        {
-                            "law_code": law_code,
-                            "node_path": node_path,
-                            "node_id": nid,
-                            "content": content,
-                            "doc_type": doc_type,
-                            "effective_start": n.get("effectiveStart") or "1900-01-01",
-                            "effective_end": n.get("effectiveEnd") or "9999-12-31",
-                            "_sim": 1.0,
-                        }
-                    )
-
-            if extra_items:
-                existing_ids = {it.get("node_id") for it in items}
-                # Ưu tiên chèn các node "một vợ một chồng" lên đầu danh sách.
-                for ei in extra_items:
-                    if ei["node_id"] not in existing_ids:
-                        items.insert(0, ei)
-                        existing_ids.add(ei["node_id"])
-        except Exception:
-            # Không để lỗi deterministic search phá hỏng retrieval thông thường.
-            pass
     items.sort(key=lambda x: x.get("_sim", 0.0), reverse=True)
     out = [
         {

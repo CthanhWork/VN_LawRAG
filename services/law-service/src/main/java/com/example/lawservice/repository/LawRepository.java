@@ -13,6 +13,8 @@ import java.util.List;
 public interface LawRepository extends JpaRepository<Law, Long> {
     Page<Law> findByCodeContainingIgnoreCaseOrTitleContainingIgnoreCase(
         String code, String title, Pageable pageable);
+
+    java.util.Optional<Law> findByCodeIgnoreCase(String code);
         
     @Query(value = "SELECT l FROM Law l WHERE " +
            "LOWER(l.code) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +

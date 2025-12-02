@@ -1,10 +1,10 @@
 import { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { updateProfile, changePassword } from '../../services/socialService';
 import { UserContext } from '../../contexts/UserContext';
 import './Account.css';
 
-const Account = () => {
+const AccountSettings = () => {
   const { user, setUser, logout, checkTokenAndSetUser } = useContext(UserContext);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -57,8 +57,7 @@ const Account = () => {
         email: updated.email || prev?.email,
         roles: normalizedRoles.length ? normalizedRoles : prev?.roles,
       }));
-      const successText = 'Cập nhật hồ sơ thành công.';
-      setSuccess(successText);
+      setSuccess('Cập nhật hồ sơ thành công.');
     } catch (err) {
       const serverMsg = err?.response?.data?.message;
       setError(serverMsg || 'Không thể cập nhật hồ sơ.');
@@ -92,13 +91,16 @@ const Account = () => {
     <section className="account page-card">
       <div className="account__header">
         <div>
-          <p className="account__eyebrow">Hồ sơ cá nhân</p>
+          <p className="account__eyebrow">Cài đặt</p>
           <h1 className="account__title">Thông tin tài khoản</h1>
-          <p className="account__subtitle">Cập nhật hồ sơ và đổi mật khẩu.</p>
+          <p className="account__subtitle">Cập nhật tên hiển thị và đổi mật khẩu.</p>
         </div>
         <div className="account__cta">
+          <Link className="account__button account__button--ghost" to="/profile">
+            Trang cá nhân
+          </Link>
           <button className="account__button account__button--ghost" onClick={handleRefresh}>
-            {loading ? 'Đang tải...' : 'Làm mới profile'}
+            {loading ? 'Đang tải...' : 'Làm mới'}
           </button>
           <button className="account__button account__button--danger" onClick={handleLogout}>
             Đăng xuất
@@ -112,7 +114,7 @@ const Account = () => {
       <div className="account__grid">
         <div className="account__card">
           <div className="account__label">Người dùng</div>
-          <div className="account__value">{user?.displayName || 'Không rõ tên'}</div>
+          <div className="account__value">{user?.displayName || 'Chưa đặt tên'}</div>
           <div className="account__muted">{user?.email || 'Chưa có email'}</div>
         </div>
 
@@ -127,12 +129,6 @@ const Account = () => {
                 ))
               : 'No role'}
           </div>
-        </div>
-
-        <div className="account__card">
-          <div className="account__label">Access token</div>
-          <div className="account__value">{tokenDisplay}</div>
-          <div className="account__muted">Lưu trong localStorage</div>
         </div>
 
         <div className="account__card account__card--stretch">
@@ -187,4 +183,4 @@ const Account = () => {
   );
 };
 
-export default Account;
+export default AccountSettings;

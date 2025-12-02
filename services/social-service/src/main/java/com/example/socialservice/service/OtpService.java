@@ -39,6 +39,10 @@ public class OtpService {
         return "otp:register:" + email.toLowerCase();
     }
 
+    private String resetKey(String email) {
+        return "otp:reset:" + email.toLowerCase();
+    }
+
     public String generate6Digits() {
         int code = 100000 + rng.nextInt(900000);
         return String.valueOf(code);
@@ -60,6 +64,27 @@ public class OtpService {
         if (logKey) {
             Long ttl = redis.getExpire(k);
             log.info("OTP issued for email={}, key={}, ttl={}s (noExpire={})", email, k, ttl, devNoExpire);
+        }
+        return code;
+    }
+
+    public String issueResetCode(String email) throws CustomException {
+        userRepo.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new CustomException(StatusCode.USER_NOT_FOUND));
+        String k = resetKey(email);
+        HashOperations<String, String, String> h = redis.opsForHash();
+        String code = generate6Digits();
+        h.put(k, "code", code);
+        h.put(k, "attempts", "0");
+        h.put(k, "max", "5");
+        h.put(k, "consumed", "0");
+        h.put(k, "createdAt", Long.toString(System.currentTimeMillis() / 1000));
+        if (!devNoExpire) {
+            redis.expire(k, Duration.ofSeconds(Math.max(60, ttlSeconds)));
+        }
+        if (logKey) {
+            Long ttl = redis.getExpire(k);
+            log.info("Reset OTP issued for email={}, key={}, ttl={}s (noExpire={})", email, k, ttl, devNoExpire);
         }
         return code;
     }
@@ -103,5 +128,37 @@ public class OtpService {
             user = userRepo.save(user);
         }
         return user;
+    }
+
+    @Transactional
+    public void verifyResetCode(String email, String code) throws CustomException {
+        String k = resetKey(email);
+        HashOperations<String, String, String> h = redis.opsForHash();
+        if (!Boolean.TRUE.equals(redis.hasKey(k))) {
+            throw new CustomException(StatusCode.OTP_NOT_FOUND);
+        }
+        String consumed = h.get(k, "consumed");
+        if ("1".equals(consumed)) {
+            throw new CustomException(StatusCode.OTP_CONSUMED);
+        }
+        int attempts = 0;
+        try { attempts = Integer.parseInt(h.get(k, "attempts")); } catch (Exception ignored) {}
+        int max = 5;
+        try { max = Integer.parseInt(h.get(k, "max")); } catch (Exception ignored) {}
+        if (attempts >= max) {
+            throw new CustomException(StatusCode.OTP_TOO_MANY_ATTEMPTS);
+        }
+        String expect = h.get(k, "code");
+        if (expect == null) {
+            throw new CustomException(StatusCode.OTP_NOT_FOUND);
+        }
+        if (!expect.equals(code)) {
+            h.increment(k, "attempts", 1);
+            throw new CustomException(StatusCode.OTP_INVALID);
+        }
+        redis.delete(k);
+        if (logKey) {
+            log.info("Reset OTP verified for email={}, key={} deleted", email, k);
+        }
     }
 }

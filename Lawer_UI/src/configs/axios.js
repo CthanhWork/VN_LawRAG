@@ -1,10 +1,10 @@
 import axios from 'axios';
 import { refreshToken } from '../utils/authRefresh';
 import { serviceBaseUrls } from './serviceMap';
-
+ 
 const axiosInstance = axios.create({
   baseURL: serviceBaseUrls.gateway,
-  timeout: 12000,
+  timeout: 180000,
   withCredentials: true,
 });
 
@@ -50,17 +50,22 @@ axiosInstance.interceptors.request.use(async (config) => {
     isRefreshing = true;
     try {
       const data = await refreshToken();
-      const newToken = data?.accessToken;
+      const newToken = data?.accessToken || data?.data?.accessToken;
+      const newRefresh = data?.refreshToken || data?.data?.refreshToken;
       if (!newToken) {
         throw new Error('Refresh token khong hop le');
       }
       localStorage.setItem('accessToken', newToken);
+      if (newRefresh) {
+        localStorage.setItem('refreshToken', newRefresh);
+      }
       processQueue(null, newToken);
       config.headers.Authorization = `Bearer ${newToken}`;
       return config;
     } catch (err) {
       processQueue(err, null);
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
       setTimeout(() => {
         window.location.href = '/login';
       }, 100);
@@ -93,17 +98,22 @@ axiosInstance.interceptors.response.use(
         isRefreshing = true;
         try {
           const data = await refreshToken();
-          const newToken = data?.accessToken;
+          const newToken = data?.accessToken || data?.data?.accessToken;
+          const newRefresh = data?.refreshToken || data?.data?.refreshToken;
           if (!newToken) {
             throw new Error('Refresh token khong hop le');
           }
           localStorage.setItem('accessToken', newToken);
+          if (newRefresh) {
+            localStorage.setItem('refreshToken', newRefresh);
+          }
           processQueue(null, newToken);
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return axiosInstance(originalRequest);
         } catch (err) {
           processQueue(err, null);
           localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
           setTimeout(() => {
             window.location.href = '/login';
           }, 100);

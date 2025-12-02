@@ -25,4 +25,4 @@ LAW_SERVICE_URL = os.getenv("LAW_SERVICE_URL", "http://law-service:8080")
 CORS_ALLOW_ORIGINS = os.getenv("CORS_ALLOW_ORIGINS", "*")
 CORS_ALLOW_METHODS = os.getenv("CORS_ALLOW_METHODS", "GET,POST,PUT,DELETE,OPTIONS,PATCH").split(',')
 CORS_ALLOW_HEADERS = os.getenv("CORS_ALLOW_HEADERS", "Content-Type,Authorization,X-Requested-With").split(',')
-
+CORS_ALLOW_CREDENTIALS = env_flag("CORS_ALLOW_CREDENTIALS", False)

@@ -22,7 +22,7 @@ def create_app() -> Flask:
                     else "*",
                     "methods": [m.strip() for m in (config.CORS_ALLOW_METHODS or [])],
                     "allow_headers": [h.strip() for h in (config.CORS_ALLOW_HEADERS or [])],
-                    "supports_credentials": False,
+                    "supports_credentials": config.CORS_ALLOW_CREDENTIALS,
                     "max_age": 3600,
                 }
             },
@@ -41,4 +41,3 @@ def create_app() -> Flask:
 
     app.register_blueprint(routes_bp)
     return app
-

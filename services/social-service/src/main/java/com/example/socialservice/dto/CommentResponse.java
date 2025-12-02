@@ -1,8 +1,11 @@
 package com.example.socialservice.dto;
 
+import java.io.Serializable;
 import java.time.OffsetDateTime;
 
-public class CommentResponse {
+public class CommentResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private Long id;
     private Long postId;
     private Long authorId;
@@ -30,4 +33,3 @@ public class CommentResponse {
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }
-

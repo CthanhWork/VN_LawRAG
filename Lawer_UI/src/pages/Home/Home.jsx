@@ -9,6 +9,7 @@ import ComposerTrigger from '../../components/Home/ComposerTrigger';
 import PostList from '../../components/Home/PostList';
 import PostModal from '../../components/Home/PostModal';
 import CommentModal from '../../components/Home/CommentModal';
+import ChatWidget from '../../components/Home/ChatWidget';
 import '../../components/Home/HomeShared.css';
 
 const Home = () => {
@@ -26,7 +27,7 @@ const Home = () => {
   const [commentModalPost, setCommentModalPost] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
 
-  const firstLetter = useMemo(() => (user?.displayName || 'U')[0], [user]);
+  const firstLetter = useMemo(() => (user?.displayName || 'U')[0].toUpperCase(), [user]);
 
   useEffect(() => {
     const load = async () => {
@@ -107,10 +108,11 @@ const Home = () => {
     e.preventDefault();
     const content = postContent.trim();
     if (!content) return;
+    const files = (postFiles || []).slice(0, 3);
     setPostLoading(true);
     setPostError('');
     try {
-      const res = await createPost({ content, visibility: 'PUBLIC', files: postFiles });
+      const res = await createPost({ content, visibility: 'PUBLIC', files });
       const newPost = res?.data;
       if (newPost) {
         setPosts((prev) => [newPost, ...prev]);
@@ -202,19 +204,8 @@ const Home = () => {
           />
         </div>
 
-        <div className="home-feed__right page-card">
-          <h3 className="home-feed__right-title">Gợi ý</h3>
-          <ul className="home-feed__links">
-            <li>
-              <a href="/laws">Kho luật</a>
-            </li>
-            <li>
-              <a href="/rag">Hỏi đáp RAG</a>
-            </li>
-            <li>
-              <a href="/profile">Tài khoản</a>
-            </li>
-          </ul>
+        <div className="home-feed__right">
+          <ChatWidget />
         </div>
       </section>
 

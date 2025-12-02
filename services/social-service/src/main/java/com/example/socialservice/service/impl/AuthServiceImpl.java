@@ -64,7 +64,49 @@ public class AuthServiceImpl implements AuthService {
                 "displayName", u.getDisplayName(),
                 "roles", u.getRoles()
         ));
-        return userMapper.toLoginResponse(u, token);
+        String refreshToken = jwtService.generateRefreshToken(u);
+        return userMapper.toLoginResponse(u, token, refreshToken);
+    }
+
+    @Override
+    public RegisterPendingResponse requestPasswordReset(ResendOtpRequest request) throws CustomException {
+        User u = userService.getByEmail(request.getEmail())
+                .orElseThrow(() -> new CustomException(StatusCode.USER_NOT_FOUND));
+        if (!"ACTIVE".equalsIgnoreCase(u.getStatus())) {
+            throw new CustomException(StatusCode.USER_NOT_ACTIVE);
+        }
+        otpService.issueResetCode(u.getEmail());
+        return new RegisterPendingResponse(true, u.getEmail(), otpTtlSeconds);
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordRequest request) throws CustomException {
+        otpService.verifyResetCode(request.getEmail(), request.getCode());
+        userService.resetPassword(request.getEmail(), request.getNewPassword());
+    }
+
+    @Override
+    public void changePassword(Long userId, ChangePasswordRequest request) throws CustomException {
+        userService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
+    }
+
+    @Override
+    public RefreshTokenResponse refreshToken(RefreshTokenRequest request) throws CustomException {
+        String refresh = request.getRefreshToken();
+        if (refresh == null || refresh.isBlank()) {
+            throw new CustomException(StatusCode.UNAUTHORIZED);
+        }
+        if (!jwtService.validateToken(refresh)) {
+            throw new CustomException(StatusCode.UNAUTHORIZED);
+        }
+        Long userId = jwtService.getUserIdFromJWT(refresh);
+        User u = userService.getById(userId)
+                .orElseThrow(() -> new CustomException(StatusCode.USER_NOT_FOUND));
+        if (!"ACTIVE".equalsIgnoreCase(u.getStatus())) {
+            throw new CustomException(StatusCode.USER_NOT_ACTIVE);
+        }
+        String accessToken = jwtService.generateAccessToken(u);
+        String newRefresh = jwtService.generateRefreshToken(u);
+        return new RefreshTokenResponse(accessToken, newRefresh);
     }
 }
-

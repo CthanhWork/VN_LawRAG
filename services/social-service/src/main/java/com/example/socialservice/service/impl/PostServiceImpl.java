@@ -53,30 +53,34 @@ public class PostServiceImpl implements PostService {
     private final CacheEvictService cacheEvictService;
 
     public PostServiceImpl(PostRepository postRepository,
-                           PostMediaRepository postMediaRepository,
-                           UserRepository userRepository,
-                           PostLikeRepository postLikeRepository,
-                           PostCommentRepository postCommentRepository,
-                           CacheEvictService cacheEvictService,
-                           @Value("${app.media.upload-dir:uploads}") String uploadDir,
-                           @Value("${app.media.public-prefix:/media}") String publicPrefix) throws IOException {
+            PostMediaRepository postMediaRepository,
+            UserRepository userRepository,
+            PostLikeRepository postLikeRepository,
+            PostCommentRepository postCommentRepository,
+            CacheEvictService cacheEvictService,
+            @Value("${app.media.upload-dir:uploads}") String uploadDir,
+            @Value("${app.media.public-prefix:/media}") String publicPrefix) throws IOException {
         this.postRepository = postRepository;
         this.postMediaRepository = postMediaRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
         this.postCommentRepository = postCommentRepository;
         this.uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();
-        this.publicPrefix = publicPrefix.endsWith("/") ? publicPrefix.substring(0, publicPrefix.length()-1) : publicPrefix;
+        this.publicPrefix = publicPrefix.endsWith("/") ? publicPrefix.substring(0, publicPrefix.length() - 1)
+                : publicPrefix;
         this.cacheEvictService = cacheEvictService;
         Files.createDirectories(this.uploadRoot);
     }
 
     @Override
     @Transactional
-    public PostResponse createPost(Long authorId, String content, MultipartFile[] files, PostVisibility visibility) throws CustomException {
-        if (authorId == null) throw new CustomException(StatusCode.VALIDATION_ERROR, "Missing authorId");
+    public PostResponse createPost(Long authorId, String content, MultipartFile[] files, PostVisibility visibility)
+            throws CustomException {
+        if (authorId == null)
+            throw new CustomException(StatusCode.VALIDATION_ERROR, "Missing authorId");
         User author = userRepository.findById(authorId).orElse(null);
-        if (author == null) throw new CustomException(StatusCode.USER_NOT_FOUND);
+        if (author == null)
+            throw new CustomException(StatusCode.USER_NOT_FOUND);
 
         Post post = new Post();
         post.setAuthorId(authorId);
@@ -87,7 +91,8 @@ public class PostServiceImpl implements PostService {
         List<PostMediaResponse> mediaResponses = new ArrayList<>();
         if (files != null) {
             for (MultipartFile file : files) {
-                if (file == null || file.isEmpty()) continue;
+                if (file == null || file.isEmpty())
+                    continue;
                 String contentType = file.getContentType();
                 MediaType mediaType = determineMediaType(contentType, file.getOriginalFilename());
                 if (mediaType == null) {
@@ -95,14 +100,18 @@ public class PostServiceImpl implements PostService {
                 }
 
                 String ext = getFileExtension(contentType, file.getOriginalFilename());
-                String filename = UUID.randomUUID().toString().replaceAll("-", "") + (StringUtils.hasText(ext) ? "." + ext : "");
+                String filename = UUID.randomUUID().toString().replaceAll("-", "")
+                        + (StringUtils.hasText(ext) ? "." + ext : "");
                 LocalDate today = LocalDate.now();
-                Path destDir = uploadRoot.resolve(Paths.get(String.valueOf(today.getYear()), String.format(Locale.ROOT, "%02d", today.getMonthValue()), String.format(Locale.ROOT, "%02d", today.getDayOfMonth()), String.valueOf(post.getId())));
+                Path destDir = uploadRoot.resolve(Paths.get(String.valueOf(today.getYear()),
+                        String.format(Locale.ROOT, "%02d", today.getMonthValue()),
+                        String.format(Locale.ROOT, "%02d", today.getDayOfMonth()), String.valueOf(post.getId())));
                 try {
                     Files.createDirectories(destDir);
                     Path dest = destDir.resolve(filename);
                     file.transferTo(dest.toFile());
-                    String publicUrl = String.format("%s/%s/%02d/%02d/%d/%s", publicPrefix, today.getYear(), today.getMonthValue(), today.getDayOfMonth(), post.getId(), filename);
+                    String publicUrl = String.format("%s/%s/%02d/%02d/%d/%s", publicPrefix, today.getYear(),
+                            today.getMonthValue(), today.getDayOfMonth(), post.getId(), filename);
 
                     PostMedia pm = new PostMedia();
                     pm.setPost(post);
@@ -112,7 +121,8 @@ public class PostServiceImpl implements PostService {
                     pm.setSizeBytes(file.getSize());
                     postMediaRepository.save(pm);
 
-                    mediaResponses.add(new PostMediaResponse(pm.getId(), pm.getMediaType(), pm.getUrl(), pm.getMimeType(), pm.getSizeBytes()));
+                    mediaResponses.add(new PostMediaResponse(pm.getId(), pm.getMediaType(), pm.getUrl(),
+                            pm.getMimeType(), pm.getSizeBytes()));
                 } catch (IOException e) {
                     log.error("Failed to store file", e);
                     throw new CustomException(StatusCode.INTERNAL_SERVER_ERROR, e);
@@ -131,11 +141,15 @@ public class PostServiceImpl implements PostService {
             cacheEvictService.evictPublicFeed();
         }
 
-        return new PostResponse(post.getId(), post.getAuthorId(), post.getContent(), post.getCreatedAt(), post.getUpdatedAt(), mediaResponses);
+        PostResponse response = new PostResponse(post.getId(), post.getAuthorId(), post.getContent(), post.getCreatedAt(),
+                post.getUpdatedAt(), mediaResponses);
+        response.setVisibility(post.getVisibility());
+        return response;
     }
 
     private void ensureReadable(Post post, Long userId) throws CustomException {
-        if (post == null) throw new CustomException(StatusCode.NOT_FOUND);
+        if (post == null)
+            throw new CustomException(StatusCode.NOT_FOUND);
         if (post.getVisibility() == PostVisibility.PRIVATE && (userId == null || !post.getAuthorId().equals(userId))) {
             throw new CustomException(StatusCode.FORBIDDEN);
         }
@@ -170,8 +184,10 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public com.example.socialservice.dto.CommentResponse addComment(Long userId, Long postId, String content) throws CustomException {
-        if (!StringUtils.hasText(content)) throw new CustomException(StatusCode.VALIDATION_ERROR, "Empty content");
+    public com.example.socialservice.dto.CommentResponse addComment(Long userId, Long postId, String content)
+            throws CustomException {
+        if (!StringUtils.hasText(content))
+            throw new CustomException(StatusCode.VALIDATION_ERROR, "Empty content");
         Post post = postRepository.findById(postId).orElse(null);
         ensureReadable(post, userId);
         var c = new com.example.socialservice.model.PostComment();
@@ -181,29 +197,37 @@ public class PostServiceImpl implements PostService {
         var saved = postCommentRepository.save(c);
         cacheEvictService.evictMyPostsForUser(post.getAuthorId());
         cacheEvictService.evictUserPostsForTarget(post.getAuthorId());
-        return new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(), saved.getCreatedAt());
+        return new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(),
+                saved.getCreatedAt());
     }
 
     @Override
     @Transactional
-    public com.example.socialservice.dto.CommentResponse updateComment(Long userId, Long postId, Long commentId, String content) throws CustomException {
-        if (!StringUtils.hasText(content)) throw new CustomException(StatusCode.VALIDATION_ERROR, "Empty content");
+    public com.example.socialservice.dto.CommentResponse updateComment(Long userId, Long postId, Long commentId,
+            String content) throws CustomException {
+        if (!StringUtils.hasText(content))
+            throw new CustomException(StatusCode.VALIDATION_ERROR, "Empty content");
         var c = postCommentRepository.findById(commentId).orElse(null);
-        if (c == null || !c.getPost().getId().equals(postId)) throw new CustomException(StatusCode.NOT_FOUND);
-        if (!c.getAuthorId().equals(userId)) throw new CustomException(StatusCode.FORBIDDEN);
+        if (c == null || !c.getPost().getId().equals(postId))
+            throw new CustomException(StatusCode.NOT_FOUND);
+        if (!c.getAuthorId().equals(userId))
+            throw new CustomException(StatusCode.FORBIDDEN);
         c.setContent(content);
         var saved = postCommentRepository.save(c);
         cacheEvictService.evictMyPostsForUser(c.getPost().getAuthorId());
         cacheEvictService.evictUserPostsForTarget(c.getPost().getAuthorId());
-        return new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(), saved.getCreatedAt());
+        return new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(),
+                saved.getCreatedAt());
     }
 
     @Override
     @Transactional
     public void deleteComment(Long userId, Long postId, Long commentId) throws CustomException {
         var c = postCommentRepository.findById(commentId).orElse(null);
-        if (c == null || !c.getPost().getId().equals(postId)) throw new CustomException(StatusCode.NOT_FOUND);
-        if (!c.getAuthorId().equals(userId)) throw new CustomException(StatusCode.FORBIDDEN);
+        if (c == null || !c.getPost().getId().equals(postId))
+            throw new CustomException(StatusCode.NOT_FOUND);
+        if (!c.getAuthorId().equals(userId))
+            throw new CustomException(StatusCode.FORBIDDEN);
         Long authorId = c.getPost().getAuthorId();
         postCommentRepository.delete(c);
         cacheEvictService.evictMyPostsForUser(authorId);
@@ -212,15 +236,19 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<com.example.socialservice.dto.CommentResponse> listComments(Long postId, int page, int size) throws CustomException {
+    public PageResponse<com.example.socialservice.dto.CommentResponse> listComments(Long postId, int page, int size)
+            throws CustomException {
         var pageable = org.springframework.data.domain.PageRequest.of(sanitizePage(page), sanitizeSize(size));
         var p = postRepository.findById(postId).orElse(null);
-        if (p == null) throw new CustomException(StatusCode.NOT_FOUND);
+        if (p == null)
+            throw new CustomException(StatusCode.NOT_FOUND);
         var pg = postCommentRepository.findByPost_IdOrderByCreatedAtAsc(postId, pageable);
         var items = pg.getContent().stream()
-                .map(c -> new com.example.socialservice.dto.CommentResponse(c.getId(), postId, c.getAuthorId(), c.getContent(), c.getCreatedAt()))
+                .map(c -> new com.example.socialservice.dto.CommentResponse(c.getId(), postId, c.getAuthorId(),
+                        c.getContent(), c.getCreatedAt()))
                 .toList();
-        return new PageResponse<>(items, pg.getNumber(), pg.getSize(), pg.getTotalElements(), pg.getTotalPages(), pg.hasNext(), pg.hasPrevious());
+        return new PageResponse<>(items, pg.getNumber(), pg.getSize(), pg.getTotalElements(), pg.getTotalPages(),
+                pg.hasNext(), pg.hasPrevious());
     }
 
     @Override
@@ -235,16 +263,19 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "userPosts", key = "#targetUserId + ':' + #currentUserId + ':' + #page + ':' + #size")
-    public PageResponse<PostResponse> listUserPosts(Long targetUserId, Long currentUserId, int page, int size) throws CustomException {
+    public PageResponse<PostResponse> listUserPosts(Long targetUserId, Long currentUserId, int page, int size)
+            throws CustomException {
         var pageable = org.springframework.data.domain.PageRequest.of(sanitizePage(page), sanitizeSize(size));
         var sameUser = Objects.equals(targetUserId, currentUserId);
         var pageObj = sameUser
                 ? postRepository.findByAuthorIdOrderByCreatedAtDesc(targetUserId, pageable)
-                : postRepository.findByAuthorIdAndVisibilityOrderByCreatedAtDesc(targetUserId, PostVisibility.PUBLIC, pageable);
+                : postRepository.findByAuthorIdAndVisibilityOrderByCreatedAtDesc(targetUserId, PostVisibility.PUBLIC,
+                        pageable);
         return mapPostPage(pageObj, currentUserId, false);
     }
 
-    private PageResponse<PostResponse> mapPostPage(org.springframework.data.domain.Page<Post> pageObj, Long currentUserId, boolean includePrivate) {
+    private PageResponse<PostResponse> mapPostPage(org.springframework.data.domain.Page<Post> pageObj,
+            Long currentUserId, boolean includePrivate) {
         var posts = pageObj.getContent();
         List<Long> ids = posts.stream().map(Post::getId).toList();
 
@@ -253,7 +284,8 @@ public class PostServiceImpl implements PostService {
         var mediaMap = new java.util.HashMap<Long, List<PostMediaResponse>>();
         for (PostMedia pm : mediaList) {
             mediaMap.computeIfAbsent(pm.getPost().getId(), k -> new ArrayList<>())
-                    .add(new PostMediaResponse(pm.getId(), pm.getMediaType(), pm.getUrl(), pm.getMimeType(), pm.getSizeBytes()));
+                    .add(new PostMediaResponse(pm.getId(), pm.getMediaType(), pm.getUrl(), pm.getMimeType(),
+                            pm.getSizeBytes()));
         }
 
         // Like counts
@@ -283,10 +315,12 @@ public class PostServiceImpl implements PostService {
 
         List<PostResponse> content = new ArrayList<>();
         for (Post p : posts) {
-            var resp = new PostResponse(p.getId(), p.getAuthorId(), p.getContent(), p.getCreatedAt(), p.getUpdatedAt(), mediaMap.getOrDefault(p.getId(), List.of()));
+            var resp = new PostResponse(p.getId(), p.getAuthorId(), p.getContent(), p.getCreatedAt(), p.getUpdatedAt(),
+                    mediaMap.getOrDefault(p.getId(), List.of()));
             resp.setLikeCount(likeCountMap.getOrDefault(p.getId(), 0L));
             resp.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
             resp.setLikedByCurrentUser(likedSet.contains(p.getId()));
+            resp.setVisibility(p.getVisibility());
             content.add(resp);
         }
 
@@ -295,27 +329,37 @@ public class PostServiceImpl implements PostService {
                 pageObj.hasNext(), pageObj.hasPrevious());
     }
 
-    private int sanitizePage(int page) { return Math.max(0, page); }
-    private int sanitizeSize(int size) { return Math.min(50, Math.max(1, size)); }
+    private int sanitizePage(int page) {
+        return Math.max(0, page);
+    }
+
+    private int sanitizeSize(int size) {
+        return Math.min(50, Math.max(1, size));
+    }
 
     @Override
     @Transactional
     public PostResponse updateVisibility(Long userId, Long postId, PostVisibility visibility) throws CustomException {
-        if (visibility == null) throw new CustomException(StatusCode.VALIDATION_ERROR, "Missing visibility");
+        if (visibility == null)
+            throw new CustomException(StatusCode.VALIDATION_ERROR, "Missing visibility");
         Post post = postRepository.findById(postId).orElse(null);
-        if (post == null) throw new CustomException(StatusCode.NOT_FOUND);
-        if (!post.getAuthorId().equals(userId)) throw new CustomException(StatusCode.FORBIDDEN);
+        if (post == null)
+            throw new CustomException(StatusCode.NOT_FOUND);
+        if (!post.getAuthorId().equals(userId))
+            throw new CustomException(StatusCode.FORBIDDEN);
         post.setVisibility(visibility);
         Post saved = postRepository.save(post);
         cacheEvictService.evictMyPostsForUser(userId);
         cacheEvictService.evictUserPostsForTarget(userId);
         cacheEvictService.evictPublicFeed();
-        return new PostResponse(saved.getId(), saved.getAuthorId(), saved.getContent(), saved.getCreatedAt(), saved.getUpdatedAt(), List.of());
+        PostResponse response = new PostResponse(saved.getId(), saved.getAuthorId(), saved.getContent(), saved.getCreatedAt(),
+                saved.getUpdatedAt(), List.of());
+        response.setVisibility(saved.getVisibility());
+        return response;
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "publicFeed", key = "#page + ':' + #size")
     public PageResponse<PostResponse> listPublicFeed(Long currentUserId, int page, int size) throws CustomException {
         var pageable = org.springframework.data.domain.PageRequest.of(sanitizePage(page), sanitizeSize(size));
         var pageObj = postRepository.findByVisibilityOrderByCreatedAtDesc(PostVisibility.PUBLIC, pageable);
@@ -324,19 +368,25 @@ public class PostServiceImpl implements PostService {
 
     private MediaType determineMediaType(String contentType, String filename) {
         if (contentType != null) {
-            if (contentType.startsWith("image/")) return MediaType.IMAGE;
-            if (contentType.startsWith("video/")) return MediaType.VIDEO;
+            if (contentType.startsWith("image/"))
+                return MediaType.IMAGE;
+            if (contentType.startsWith("video/"))
+                return MediaType.VIDEO;
         }
         String ext = getExtensionFromFilename(filename).toLowerCase(Locale.ROOT);
-        if (ext.matches("jpg|jpeg|png|gif|webp|bmp")) return MediaType.IMAGE;
-        if (ext.matches("mp4|mov|m4v|webm|avi|mkv")) return MediaType.VIDEO;
+        if (ext.matches("jpg|jpeg|png|gif|webp|bmp"))
+            return MediaType.IMAGE;
+        if (ext.matches("mp4|mov|m4v|webm|avi|mkv"))
+            return MediaType.VIDEO;
         return null;
     }
 
     private String getFileExtension(String contentType, String filename) {
         String ext = getExtensionFromFilename(filename);
-        if (StringUtils.hasText(ext)) return ext.toLowerCase(Locale.ROOT);
-        if (contentType == null) return null;
+        if (StringUtils.hasText(ext))
+            return ext.toLowerCase(Locale.ROOT);
+        if (contentType == null)
+            return null;
         return switch (contentType) {
             case "image/jpeg" -> "jpg";
             case "image/png" -> "png";
@@ -350,9 +400,11 @@ public class PostServiceImpl implements PostService {
     }
 
     private String getExtensionFromFilename(String filename) {
-        if (!StringUtils.hasText(filename)) return "";
+        if (!StringUtils.hasText(filename))
+            return "";
         int idx = filename.lastIndexOf('.');
-        if (idx < 0 || idx == filename.length() - 1) return "";
+        if (idx < 0 || idx == filename.length() - 1)
+            return "";
         return filename.substring(idx + 1);
     }
 }

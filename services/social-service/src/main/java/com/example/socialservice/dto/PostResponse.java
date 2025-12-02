@@ -1,9 +1,12 @@
 package com.example.socialservice.dto;
 
+import java.io.Serializable;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-public class PostResponse {
+public class PostResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private Long id;
     private Long authorId;
     private String content;
@@ -13,6 +16,7 @@ public class PostResponse {
     private long likeCount;
     private long commentCount;
     private boolean likedByCurrentUser;
+    private com.example.socialservice.enums.PostVisibility visibility;
 
     public PostResponse() {}
 
@@ -43,4 +47,6 @@ public class PostResponse {
     public void setCommentCount(long commentCount) { this.commentCount = commentCount; }
     public boolean isLikedByCurrentUser() { return likedByCurrentUser; }
     public void setLikedByCurrentUser(boolean likedByCurrentUser) { this.likedByCurrentUser = likedByCurrentUser; }
+    public com.example.socialservice.enums.PostVisibility getVisibility() { return visibility; }
+    public void setVisibility(com.example.socialservice.enums.PostVisibility visibility) { this.visibility = visibility; }
 }

@@ -1,8 +1,15 @@
 package com.example.lawservice.payload;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 public class ApiResponse<T> {
+    @Schema(description = "Business status code", example = "200")
     private int code;
+
+    @Schema(description = "Human-readable message", example = "OK")
     private String message;
+
+    @Schema(description = "Payload")
     private T data;
 
     public ApiResponse() {}
@@ -24,4 +31,3 @@ public class ApiResponse<T> {
     public T getData() { return data; }
     public void setData(T data) { this.data = data; }
 }
-

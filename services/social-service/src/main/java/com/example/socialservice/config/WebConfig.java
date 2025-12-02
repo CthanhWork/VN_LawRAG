@@ -2,6 +2,7 @@ package com.example.socialservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -12,13 +13,16 @@ import java.nio.file.Paths;
 public class WebConfig implements WebMvcConfigurer {
     private final String uploadDir;
     private final String publicPrefix;
+    private final String[] allowedOrigins;
 
     public WebConfig(
             @Value("${app.media.upload-dir:uploads}") String uploadDir,
-            @Value("${app.media.public-prefix:/media}") String publicPrefix
+            @Value("${app.media.public-prefix:/media}") String publicPrefix,
+            @Value("${app.cors.allowed-origins:*}") String allowedOrigins
     ) {
         this.uploadDir = uploadDir;
         this.publicPrefix = publicPrefix;
+        this.allowedOrigins = parseOrigins(allowedOrigins);
     }
 
     @Override
@@ -30,5 +34,22 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler(pattern)
                 .addResourceLocations(location);
     }
-}
 
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOriginPatterns(allowedOrigins)
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+                .allowedHeaders("*")
+                .exposedHeaders("Content-Type", "Authorization")
+                .allowCredentials(true)
+                .maxAge(3600);
+    }
+
+    private String[] parseOrigins(String origins) {
+        if (origins == null || origins.isBlank()) {
+            return new String[]{"*"};
+        }
+        return origins.split("\\s*,\\s*");
+    }
+}

@@ -108,6 +108,11 @@ public class JwtService {
         }
     }
 
+    public String getRolesFromJWT(String token) {
+        DecodedJWT jwt = JWT.require(getAlgorithm()).withIssuer(issuer).build().verify(token);
+        return jwt.getClaim("roles").asString();
+    }
+
     public String extractToken(HttpServletRequest request) {
         String bearer = request.getHeader("Authorization");
         if (bearer != null && bearer.startsWith("Bearer ")) {

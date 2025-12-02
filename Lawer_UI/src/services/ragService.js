@@ -1,10 +1,14 @@
 import { callService } from '../configs/gateway';
 
-export const askQuestion = async (payload) => {
+export const askQuestion = async ({ question, effectiveAt, k } = {}) => {
   const response = await callService('rag', {
     method: 'post',
-    url: '/ask',
-    data: payload,
+    url: '/analyze',
+    params: {
+      ...(k ? { k } : {}),
+      ...(effectiveAt ? { effectiveAt } : {}),
+    },
+    data: { question },
   });
   return response.data;
 };

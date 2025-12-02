@@ -49,6 +49,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Optional<User> getById(Long id) {
+        return userRepository.findById(id);
+    }
+
+    @Override
     public User login(String email, String password) throws CustomException {
         User u = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new CustomException(StatusCode.INVALID_CREDENTIALS));
@@ -59,5 +64,54 @@ public class UserServiceImpl implements UserService {
             throw new CustomException(StatusCode.INVALID_CREDENTIALS);
         }
         return u;
+    }
+
+    @Override
+    @Transactional
+    public User changePassword(Long userId, String currentPassword, String newPassword) throws CustomException {
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new CustomException(StatusCode.PASSWORD_WEAK);
+        }
+        User u = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(StatusCode.USER_NOT_FOUND));
+        if (!"ACTIVE".equalsIgnoreCase(u.getStatus())) {
+            throw new CustomException(StatusCode.USER_NOT_ACTIVE);
+        }
+        if (!encoder.matches(currentPassword, u.getPasswordHash())) {
+            throw new CustomException(StatusCode.INVALID_CREDENTIALS);
+        }
+        u.setPasswordHash(encoder.encode(newPassword));
+        return userRepository.save(u);
+    }
+
+    @Override
+    @Transactional
+    public User resetPassword(String email, String newPassword) throws CustomException {
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new CustomException(StatusCode.PASSWORD_WEAK);
+        }
+        User u = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new CustomException(StatusCode.USER_NOT_FOUND));
+        if (!"ACTIVE".equalsIgnoreCase(u.getStatus())) {
+            throw new CustomException(StatusCode.USER_NOT_ACTIVE);
+        }
+        u.setPasswordHash(encoder.encode(newPassword));
+        return userRepository.save(u);
+    }
+
+    @Override
+    @Transactional
+    public User updateProfile(Long userId, String displayName) throws CustomException {
+        String trimmed = displayName == null ? null : displayName.trim();
+        if (trimmed == null || trimmed.length() < 3 || trimmed.length() > 50) {
+            throw new CustomException(StatusCode.VALIDATION_ERROR);
+        }
+        User u = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(StatusCode.USER_NOT_FOUND));
+        if (!"ACTIVE".equalsIgnoreCase(u.getStatus())) {
+            throw new CustomException(StatusCode.USER_NOT_ACTIVE);
+        }
+        u.setDisplayName(trimmed);
+        return userRepository.save(u);
     }
 }

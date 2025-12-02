@@ -58,6 +58,22 @@ export const unlikePost = async (postId) => {
   return response.data;
 };
 
-const postService = { getMyPosts, getUserPosts, getFeed, likePost, unlikePost };
+export const updatePostVisibility = async (postId, visibility) => {
+  const response = await callService('social', {
+    method: 'patch',
+    url: `/api/social/posts/${postId}/visibility`,
+    data: { visibility },
+  });
+  return response.data;
+};
+
+const postService = {
+  getMyPosts,
+  getUserPosts,
+  getFeed,
+  likePost,
+  unlikePost,
+  updatePostVisibility,
+};
 
 export default postService;

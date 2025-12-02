@@ -1,8 +1,11 @@
 package com.example.socialservice.dto;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class PageResponse<T> {
+public class PageResponse<T extends Serializable> implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private List<T> content;
     private int page;
     private int size;
@@ -38,4 +41,3 @@ public class PageResponse<T> {
     public boolean isHasPrevious() { return hasPrevious; }
     public void setHasPrevious(boolean hasPrevious) { this.hasPrevious = hasPrevious; }
 }
-

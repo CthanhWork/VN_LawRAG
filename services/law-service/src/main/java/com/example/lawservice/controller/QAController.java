@@ -26,18 +26,17 @@
             this.qaService = qaService;
         }
 
-        @PostMapping(value = "/analyze", consumes = "application/json")
-        @Operation(summary = "Analyze a scenario using LLM and return decision with citations")
-        public ResponseEntity<ApiResponse<QaAnalyzeResponse>> analyze(
-            @RequestBody QaRequest body,
-            @Parameter(description = "Effective date (YYYY-MM-DD)")
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate effectiveAt,
-            @Parameter(description = "Number of top contexts to consider")
-            @RequestParam(required = false, defaultValue = "8") int k
-        ) throws CustomException {
-            QaAnalyzeResponse result = qaService.analyze(body, effectiveAt, k);
-            return ResponseEntity.ok(ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), result));
-        }
+    @PostMapping(value = "/analyze", consumes = "application/json")
+    @Operation(summary = "Analyze a scenario using LLM and return decision with citations")
+    public ResponseEntity<ApiResponse<QaAnalyzeResponse>> analyze(
+        @RequestBody QaRequest body,
+        @Parameter(description = "Effective date (YYYY-MM-DD)")
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        LocalDate effectiveAt
+    ) throws CustomException {
+        final int k = 10; // fixed default; no need to pass from client
+        QaAnalyzeResponse result = qaService.analyze(body, effectiveAt, k);
+        return ResponseEntity.ok(ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), result));
     }
+}

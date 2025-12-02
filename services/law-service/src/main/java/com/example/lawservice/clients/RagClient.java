@@ -158,7 +158,7 @@ public class RagClient {
             throw new IllegalArgumentException("question must not be blank");
         }
         LocalDate effectiveDate = Optional.ofNullable(effectiveAt).orElse(LocalDate.now());
-        int topK = Optional.ofNullable(k).orElse(8);
+        int topK = Optional.ofNullable(k).orElse(10);
         try {
             AnalyzeRequest payload = new AnalyzeRequest(question, effectiveDate.toString(), new AnalyzeOptions(topK));
             AnalyzeResult resp = webClient.post()
@@ -189,6 +189,7 @@ public class RagClient {
                 .collect(java.util.stream.Collectors.toList());
 
             return com.example.lawservice.dto.QaAnalyzeResponse.builder()
+                .answer(resp.answer)
                 .decision(resp.decision)
                 .explanation(resp.explanation)
                 .citations(citations)
@@ -273,6 +274,10 @@ public class RagClient {
     ) {}
 
     private static class AnalyzeResult {
+        @JsonProperty("answer")
+        @JsonAlias("answer")
+        public String answer;
+
         @JsonProperty("decision")
         public String decision;
 

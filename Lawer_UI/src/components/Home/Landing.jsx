@@ -6,8 +6,8 @@ const Landing = () => (
     <div className="home-landing__left">
       <h1 className="home-landing__title">Cập nhật pháp luật thân thiện</h1>
       <p className="home-landing__desc">
-        Theo dõi tin pháp lý, lưu tài liệu quan trọng và trò chuyện cùng cộng đồng. Mọi thứ tập trung tại VN
-        Law RAG.
+        Theo dõi tin pháp lý, lưu tài liệu quan trọng và trò chuyện cùng cộng đồng VN Law RAG. Tất cả trong một giao
+        diện tối mới giống Bento.
       </p>
       <div className="home-landing__actions">
         <Link className="home__btn home__btn--primary" to="/login">

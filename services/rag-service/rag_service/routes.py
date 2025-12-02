@@ -6,7 +6,7 @@ from .metrics import REQ_COUNT, REQ_LAT, generate_latest, CONTENT_TYPE_LATEST
 from . import state
 from .utils import parse_date
 from .retrieval import retrieve2, _enrich_contexts, expand_references
-from .answer import synthesize_answer2, violation_judgment_heuristic, _select_relevant_citations
+from .answer import synthesize_answer2, violation_judgment_heuristic, build_structured_advice
 from .analysis_llm import violation_judgment_llm
 
 
@@ -101,13 +101,41 @@ def metrics():
 
 @bp.post("/admin/reindex")
 def reindex():
-    return jsonify({"status": "accepted"}), 202
+    ok = state.ensure_inited()
+    info = {"ready": ok}
+    if ok and state.col is not None:
+        try:
+            # Clear existing vectors so downstream ingest can repopulate fresh embeddings.
+            state.col.delete(where={})
+            info["cleared"] = True
+            info["count"] = 0
+        except Exception as e:
+            info["error"] = str(e)
+    code = 202 if ok else 503
+    return jsonify(info), code
 
 
 @bp.post("/admin/reload_patterns")
 def reload_patterns():
     state.load_domain_patterns()
     return jsonify({"reloaded": state.domain_patterns is not None})
+
+
+@bp.get("/admin/status")
+def admin_status():
+    ready = state.ensure_inited()
+    count = None
+    if ready and state.col is not None:
+        try:
+            count = state.col.count()
+        except Exception:
+            count = None
+    llm = state.llm_status(run_live=False)
+    return jsonify({
+        "ready": ready,
+        "vector_count": count,
+        "llm": llm,
+    })
 
 
 @bp.post("/analyze")
@@ -130,8 +158,7 @@ def analyze():
         ctx = retrieve2(q, t, k=k)
         # Expand contexts by following in-text references (e.g., "Điều 8") and related decrees to include full articles
         ctx_expanded = expand_references(ctx, effective_at=t, max_extra=max(4, 12 - len(ctx)), question=q)
-        rel_ctx = _select_relevant_citations(ctx_expanded, limit=8) or ctx_expanded[:8]
-        rich_ctx = _enrich_contexts(rel_ctx, limit=8)
+        rich_ctx = _enrich_contexts(ctx_expanded[:8], limit=8)
 
         verdict = violation_judgment_llm(q, t, rich_ctx)
         if not verdict:
@@ -149,16 +176,20 @@ def analyze():
                 key = (m.get("law_code") or "", m.get("node_path") or "", m.get("node_id"))
                 if key in allowed:
                     matched.append(m)
-            if verdict.get("decision") == "VIOLATION" and not matched:
-                verdict["decision"] = "UNCERTAIN"
-                verdict["explanation"] = "Thieu trich dan hop le trong ngu canh de ket luan vi pham."
+            # Trong chế độ tư vấn, chúng ta không đánh giá vi phạm, nên decision sẽ chuẩn hóa thành INFO bên dưới.
             verdict["matched"] = matched
         except Exception:
             pass
 
-        # Bảo đảm luôn có answer: nếu LLM không cung cấp, fallback sang answer rút gọn từ context
-        if not verdict.get("answer"):
-            verdict["answer"] = synthesize_answer2(q, t, rich_ctx)
+        # Bảo đảm luôn có answer: ưu tiên LLM; nếu thiếu thì dựng từ context
+        if verdict.get("answer"):
+            answer_text = verdict.get("answer")
+        else:
+            answer_text = build_structured_advice(rich_ctx) or synthesize_answer2(q, t, rich_ctx)
+        verdict["answer"] = answer_text
+
+        # Chuẩn hóa decision: luôn là INFO trong chế độ tư vấn pháp lý
+        verdict["decision"] = "INFO"
 
         used_nodes = [
             m.get("node_id")

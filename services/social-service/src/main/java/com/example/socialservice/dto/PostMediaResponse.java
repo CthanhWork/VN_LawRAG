@@ -1,8 +1,11 @@
 package com.example.socialservice.dto;
 
 import com.example.socialservice.enums.MediaType;
+import java.io.Serializable;
 
-public class PostMediaResponse {
+public class PostMediaResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private Long id;
     private MediaType mediaType;
     private String url;
@@ -30,4 +33,3 @@ public class PostMediaResponse {
     public Long getSizeBytes() { return sizeBytes; }
     public void setSizeBytes(Long sizeBytes) { this.sizeBytes = sizeBytes; }
 }
-

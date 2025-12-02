@@ -9,6 +9,8 @@ const Header = () => {
   const [openUser, setOpenUser] = useState(false);
   const userRef = useRef(null);
   const initials = (user?.displayName || user?.email || 'U').slice(0, 2).toUpperCase();
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  const isAdmin = roles.some((role) => String(role).toUpperCase() === 'ADMIN');
 
   useEffect(() => {
     const handler = (e) => {
@@ -31,13 +33,19 @@ const Header = () => {
               <span className="header__logo-sub">Cổng gateway</span>
             </div>
           </Link>
-
-          
         </div>
 
         <div className="header__account">
           {isLogin ? (
             <div className="header__userbox" ref={userRef}>
+              {isAdmin && (
+                <NavLink to="/admin" className="header__link header__link--ghost">
+                  Admin
+                </NavLink>
+              )}
+              <NavLink to="/rag" className="header__link header__link--ghost">
+                RAG Chat
+              </NavLink>
               <div className="header__avatar" onClick={() => setOpenUser((v) => !v)}>
                 {initials}
               </div>
@@ -47,7 +55,9 @@ const Header = () => {
               </div>
               {openUser && (
                 <div className="header__dropdown">
+                  {isAdmin && <Link to="/admin">Admin console</Link>}
                   <Link to="/profile">Trang cá nhân</Link>
+                  <Link to="/settings">Cài đặt</Link>
                   <button
                     type="button"
                     onClick={() => {
@@ -55,7 +65,7 @@ const Header = () => {
                       navigate('/login');
                     }}
                   >
-                    Đăng xuất
+                    Log out
                   </button>
                 </div>
               )}

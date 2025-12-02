@@ -32,6 +32,7 @@ API Highlights
 - POST /api/qa  (body: {"question":"..."}, query: effectiveAt=YYYY-MM-DD) forwards to rag-service
 - POST /api/qa/gen  (body: {"question","effectiveAt","k","maxTokens","temperature"}) uses LLM generation with citations
 - POST /api/admin/reindex  (internal) triggers RAG re-embedding
+- POST /api/admin/laws/upload (multipart) admin-only PDF upload to create/update a law and store extracted text as one root node
 - Actuator: /actuator/health, /actuator/metrics, /actuator/prometheus
 
 Docker
@@ -64,6 +65,7 @@ Security
 Notes
 - application.properties uses jdbc to localhost:3307 for convenience in docker-compose setups. Override with CLI args or env vars in production.
 - This is a minimal skeleton. Add DTOs, validation, paging, security, and tests as next steps.
+- Admin PDF upload saves files to `law.upload-dir` (default `./uploads`, docker `/data/uploads`). Send multipart with `file=@law.pdf` and `meta` JSON (e.g., `{"code":"121/VBHN-VPQH","title":"Law 121","effectiveDate":"2019-01-01","replaceExisting":true}`) plus `X-API-KEY`.
 
 Fulltext search (MySQL)
 - Ensure you are on MySQL/InnoDB with FULLTEXT support.

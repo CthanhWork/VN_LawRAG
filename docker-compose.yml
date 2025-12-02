@@ -85,6 +85,8 @@ services:
       # Baseline at version 0 so V1+ migrations still run even if schema non-empty
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
       - SPRING_FLYWAY_BASELINE_VERSION=0
+      - SPRING_PROFILES_ACTIVE=docker
+      - SECURITY_ADMIN_API_KEY=Thanhabc
     depends_on:
       - mysql
       - rag-service
@@ -103,12 +105,19 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/laws?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
       - SPRING_DATASOURCE_USERNAME=app
       - SPRING_DATASOURCE_PASSWORD=app
+      - APP_MEDIA_UPLOAD_DIR=/data/uploads
+      - APP_MEDIA_PUBLIC_PREFIX=/media
     depends_on:
       - mysql
       - redis
+    volumes:
+      - social_uploads:/data/uploads
     ports:
       - "8082:8082"
 
 volumes:
   dbdata:
   chroma:
+  social_uploads:
+
+  

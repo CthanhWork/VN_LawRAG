@@ -10,15 +10,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${cors.allowed-origins:http://localhost:8000}")
-    private String allowedOrigins;
-
     @Value("${rag.service.url:http://localhost:5001}")
     private String ragBaseUrl;
 
+    @Value("${cors.allowed-origins:*}")
+    private String corsAllowedOrigins;
+
     @Bean
     public WebClient.Builder webClientBuilder() {
-        // Có thể set sẵn baseUrl ở Builder nếu muốn dùng chung:
         return WebClient.builder().baseUrl(ragBaseUrl);
     }
 
@@ -29,10 +28,20 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] allowedOrigins = parseOrigins(corsAllowedOrigins);
         registry.addMapping("/api/**")
-            .allowedOrigins(allowedOrigins.split(","))
-            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-            .allowedHeaders("*")
-            .allowCredentials(true);
+                .allowedOriginPatterns(allowedOrigins)
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+                .allowedHeaders("*")
+                .exposedHeaders("Content-Type", "Authorization")
+                .allowCredentials(true)
+                .maxAge(3600);
+    }
+
+    private String[] parseOrigins(String origins) {
+        if (origins == null || origins.isBlank()) {
+            return new String[]{"*"};
+        }
+        return origins.split("\\s*,\\s*");
     }
 }

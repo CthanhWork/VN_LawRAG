@@ -5,30 +5,30 @@ const Footer = () => (
     <div className="shell-container footer__container">
       <div className="footer__section">
         <h4 className="footer__title">VN Law RAG</h4>
-        <p className="footer__text">Giao dien gateway cho he thong microservices phap luat.</p>
+        <p className="footer__text">Giao diện gateway cho hệ thống microservices pháp luật.</p>
       </div>
       <div className="footer__section">
-        <h4 className="footer__title">Lien ket</h4>
+        <h4 className="footer__title">Liên kết</h4>
         <ul className="footer__list">
           <li>
             <a className="footer__link" href="/terms">
-              Dieu khoan
+              Điều khoản
             </a>
           </li>
           <li>
             <a className="footer__link" href="/support">
-              Ho tro
+              Hỗ trợ
             </a>
           </li>
           <li>
             <a className="footer__link" href="/privacy">
-              Chinh sach rieng tu
+              Chính sách riêng tư
             </a>
           </li>
         </ul>
       </div>
       <div className="footer__section">
-        <h4 className="footer__title">Lien he</h4>
+        <h4 className="footer__title">Liên hệ</h4>
         <p className="footer__text">Email: support@example.com</p>
         <p className="footer__text">© 2025 VN Law RAG. All rights reserved.</p>
       </div>

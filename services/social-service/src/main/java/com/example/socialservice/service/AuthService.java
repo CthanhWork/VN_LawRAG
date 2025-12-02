@@ -8,5 +8,8 @@ public interface AuthService {
     RegisterResponse verifyOtp(VerifyOtpRequest request) throws CustomException;
     RegisterPendingResponse resendOtp(ResendOtpRequest request) throws CustomException;
     LoginResponse login(LoginRequest request) throws CustomException;
+    RegisterPendingResponse requestPasswordReset(ResendOtpRequest request) throws CustomException;
+    void resetPassword(ResetPasswordRequest request) throws CustomException;
+    void changePassword(Long userId, ChangePasswordRequest request) throws CustomException;
+    RefreshTokenResponse refreshToken(RefreshTokenRequest request) throws CustomException;
 }
-
