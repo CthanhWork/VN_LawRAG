@@ -14,19 +14,25 @@ public class WebConfig implements WebMvcConfigurer {
     private final String uploadDir;
     private final String publicPrefix;
     private final String[] allowedOrigins;
+    private final String storageType;
 
     public WebConfig(
             @Value("${app.media.upload-dir:uploads}") String uploadDir,
             @Value("${app.media.public-prefix:/media}") String publicPrefix,
+            @Value("${app.media.storage:local}") String storageType,
             @Value("${app.cors.allowed-origins:*}") String allowedOrigins
     ) {
         this.uploadDir = uploadDir;
         this.publicPrefix = publicPrefix;
         this.allowedOrigins = parseOrigins(allowedOrigins);
+        this.storageType = storageType;
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        if (!"local".equalsIgnoreCase(storageType)) {
+            return;
+        }
         String prefix = publicPrefix.endsWith("/") ? publicPrefix : publicPrefix + "/";
         String pattern = prefix + "**";
         Path root = Paths.get(uploadDir).toAbsolutePath().normalize();

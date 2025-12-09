@@ -16,8 +16,11 @@ const AuthLayout = ({ children, title, image }) => (
     <div className="auth__right">
       <div className="auth__form-box">
         <div className="auth__logo-wrapper">
-          <div className="auth__logo">VL</div>
-          <div className="auth__brand-title">VN Law</div>
+          <img
+            className="auth__logo-img"
+            src="/coreui/assets/img/VNLAW.svg"
+            alt="VNLAW logo"
+          />
         </div>
         {title && <h2 className="auth__title">{title}</h2>}
         {children}

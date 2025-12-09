@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { CloseIcon } from './BentoIcons';
+import { callService } from '../../configs/gateway';
 import './HomeShared.css';
 
 const promptSuggestions = [
@@ -18,84 +20,123 @@ const ChatWidget = () => {
   ]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [showPrompts, setShowPrompts] = useState(true);
 
   const handleSend = async (e) => {
     e.preventDefault();
     const text = input.trim();
     if (!text) return;
     setSending(true);
+    setShowPrompts(false);
     setMessages((prev) => [...prev, { role: 'user', text }]);
     setInput('');
-    // Stubbed reply; real integration can call RAG/chat API here.
-    setTimeout(() => {
+    try {
+      const res = await callService('gateway', {
+        method: 'post',
+        url: '/api/qa/analyze',
+        data: { question: text },
+      });
+      const data = res?.data || {};
+      const answer =
+        data?.answer ||
+        data?.data?.answer ||
+        'Đã nhận câu hỏi, vui lòng thử lại nếu chưa có trả lời.';
+      setMessages((prev) => [...prev, { role: 'assistant', text: answer }]);
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          text: 'Mình đã ghi nhận câu hỏi. Muốn tra cứu chuyên sâu, bật chế độ RAG trong cài đặt sắp ra mắt.',
+          text: 'Xin lỗi, không gửi được câu hỏi. Vui lòng thử lại.',
         },
       ]);
+    } finally {
       setSending(false);
-    }, 400);
+    }
   };
 
   return (
-    <div className="chat-widget page-card">
-      <div className="chat-widget__head">
-        <div className="chat-widget__heading">
+    <>
+      {!open && (
+        <button
+          type="button"
+          className="chat-widget__launcher"
+          onClick={() => {
+            setShowPrompts(true);
+            setOpen(true);
+          }}
+          aria-label="Mở Trợ lý Pháp lý VN"
+        >
           <span className="chat-widget__icon" role="img" aria-label="law">
-            ⚖️
+            AI
           </span>
-          <div>
-            <h3 className="chat-widget__title">Trợ lý Pháp lý VN</h3>
-            <p className="chat-widget__subtitle">Hỏi đáp pháp luật, nhận gợi ý nhanh.</p>
+        </button>
+      )}
+
+      {open && (
+        <div className="chat-widget__popup">
+          <div className="chat-widget page-card">
+            <div className="chat-widget__head chat-widget__head--popup">
+              <div className="chat-widget__heading">
+                <span className="chat-widget__icon" role="img" aria-label="law">
+                  AI
+                </span>
+                <div>
+                  <h3 className="chat-widget__title">Trợ lý Pháp lý VN</h3>
+                  <p className="chat-widget__subtitle">Hỏi đáp pháp luật, nhận gợi ý nhanh.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="chat-widget__close"
+                onClick={() => setOpen(false)}
+                aria-label="Đóng chat"
+              >
+                <CloseIcon size={20} />
+              </button>
+            </div>
+
+            <div className="chat-widget__body">
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`chat-widget__bubble chat-widget__bubble--${msg.role}`}>
+                  {msg.text}
+                </div>
+              ))}
+              {showPrompts && (
+                <div className="chat-widget__prompts">
+                  {promptSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      className="chat-widget__prompt"
+                      onClick={() => setInput(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <form className="chat-widget__form" onSubmit={handleSend}>
+              <div className="chat-widget__input-wrap chat-widget__input-wrap--plain">
+                <input
+                  type="text"
+                  placeholder="Nhập câu hỏi pháp lý của bạn..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  disabled={sending}
+                />
+                <button type="submit" className="chat-widget__send-btn" disabled={sending}>
+                  Gửi
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-        <div className="chat-widget__actions">
-          <button type="button" className="chat-widget__icon-btn" aria-label="Lịch sử chat">
-            🕑
-          </button>
-          <button type="button" className="chat-widget__icon-btn" aria-label="Cài đặt">
-            ⚙️
-          </button>
-        </div>
-      </div>
-
-      <div className="chat-widget__body">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`chat-widget__bubble chat-widget__bubble--${msg.role}`}>
-            {msg.text}
-          </div>
-        ))}
-        <div className="chat-widget__prompts">
-          {promptSuggestions.map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              className="chat-widget__prompt"
-              onClick={() => setInput(suggestion)}
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <form className="chat-widget__form" onSubmit={handleSend}>
-        <div className="chat-widget__input-wrap chat-widget__input-wrap--plain">
-          <input
-            type="text"
-            placeholder="Nhập câu hỏi pháp luật của bạn..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={sending}
-          />
-          <button type="submit" className="chat-widget__send-btn" disabled={sending}>
-            ➤
-          </button>
-        </div>
-      </form>
-    </div>
+      )}
+    </>
   );
 };
 

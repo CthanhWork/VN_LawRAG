@@ -4,7 +4,6 @@ import { UserContext } from '../../contexts/UserContext';
 import { getFeed, likePost, unlikePost, createPost } from '../../services/postService';
 import { getComments, addComment } from '../../services/commentService';
 import Landing from '../../components/Home/Landing';
-import Sidebar from '../../components/Home/Sidebar';
 import ComposerTrigger from '../../components/Home/ComposerTrigger';
 import PostList from '../../components/Home/PostList';
 import PostModal from '../../components/Home/PostModal';
@@ -183,17 +182,13 @@ const Home = () => {
   return (
     <>
       <section className="home-feed">
-        <Sidebar
-          firstLetter={firstLetter}
-          user={user}
-          onLogout={() => {
-            logout();
-            navigate('/login');
-          }}
-        />
-
         <div className="home-feed__timeline">
-          <ComposerTrigger firstLetter={firstLetter} onOpen={() => setPostModalOpen(true)} />
+          <ComposerTrigger
+            firstLetter={firstLetter}
+            avatarUrl={user?.avatarUrl}
+            displayName={user?.displayName}
+            onOpen={() => setPostModalOpen(true)}
+          />
           <PostList
             posts={posts}
             loading={loading}
@@ -203,17 +198,16 @@ const Home = () => {
             currentUserInitial={firstLetter}
           />
         </div>
-
-        <div className="home-feed__right">
-          <ChatWidget />
-        </div>
       </section>
+
+      <ChatWidget />
 
       <PostModal
         open={postModalOpen}
         onClose={() => setPostModalOpen(false)}
         firstLetter={firstLetter}
         displayName={user?.displayName}
+        avatarUrl={user?.avatarUrl}
         postContent={postContent}
         setPostContent={setPostContent}
         postFiles={postFiles}
@@ -229,6 +223,8 @@ const Home = () => {
         commentInput={commentModalPost ? commentInputs[commentModalPost.id] : ''}
         onChangeInput={(postId, val) => setCommentInputs((prev) => ({ ...prev, [postId]: val }))}
         onSubmit={handleSubmitComment}
+        currentUserAvatar={user?.avatarUrl}
+        currentUserName={user?.displayName}
         onClose={() => setCommentModalPost(null)}
       />
     </>

@@ -147,6 +147,24 @@ public class AdminLawQueryController {
         return ResponseEntity.ok(ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), PageResponse.from(mapped)));
     }
 
+    @GetMapping("/{lawId}/nodes/by-parent")
+    @Operation(summary = "List nodes by parent to load chapters/sections lazily")
+    public ResponseEntity<ApiResponse<PageResponse<NodeDTO>>> nodesByParent(
+            @PathVariable Long lawId,
+            @RequestParam(value = "parentId", required = false) Long parentId,
+            @Parameter(description = "Filter nodes effective at this date (YYYY-MM-DD)")
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate effectiveAt,
+            @ParameterObject Pageable pageable
+    ) {
+        Page<LawNode> nodes = effectiveAt != null
+                ? nodeRepository.findByLaw_IdAndParentIdEffectiveAt(lawId, parentId, effectiveAt, pageable)
+                : nodeRepository.findByLaw_IdAndParentId(lawId, parentId, pageable);
+        Page<NodeDTO> mapped = nodes.map(this::toDto);
+        return ResponseEntity.ok(ApiResponse.of(StatusCode.OK.getCode(), StatusCode.OK.getMessage(), PageResponse.from(mapped)));
+    }
+
     @GetMapping("/nodes/{id}")
     @Operation(summary = "Get node detail")
     public ResponseEntity<ApiResponse<NodeDTO>> getNode(@PathVariable Long id) {

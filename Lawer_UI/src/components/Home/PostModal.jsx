@@ -1,4 +1,5 @@
 import { CloseIcon, EmojiIcon, GifIcon, ImageIcon, TagIcon, GlobeIcon } from './BentoIcons';
+import AvatarBadge from './AvatarBadge';
 import './HomeShared.css';
 
 const PostModal = ({
@@ -6,6 +7,7 @@ const PostModal = ({
   onClose,
   firstLetter,
   displayName,
+  avatarUrl,
   postContent,
   setPostContent,
   postFiles,
@@ -27,7 +29,7 @@ const PostModal = ({
         </div>
 
         <div className="home-modal__user">
-          <div className="bento-avatar bento-avatar--small">{firstLetter}</div>
+          <AvatarBadge src={avatarUrl} fallback={firstLetter} size="small" title={displayName} />
           <div className="home-modal__user-text">
             <div className="home-modal__user-name">{displayName || 'Người dùng'}</div>
             <div className="home-pill">

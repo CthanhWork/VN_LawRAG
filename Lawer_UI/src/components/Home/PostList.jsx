@@ -1,5 +1,6 @@
 import { serviceBaseUrls } from '../../configs/serviceMap';
 import { HeartIcon, CommentIcon, ShareIcon, BookmarkIcon, MoreIcon } from './BentoIcons';
+import AvatarBadge from './AvatarBadge';
 import './HomeShared.css';
 
 const formatTime = (value) => {
@@ -62,15 +63,24 @@ const PostList = ({
         const mediaItems = Array.isArray(post.media) ? post.media : [];
         const displayMedia = mediaItems.slice(0, 3);
         const extraCount = mediaItems.length > 3 ? mediaItems.length - 3 : 0;
+        const mediaLayout =
+          displayMedia.length === 1
+            ? 'home-feed__media-grid--single'
+            : displayMedia.length === 2
+            ? 'home-feed__media-grid--double'
+            : displayMedia.length >= 3
+            ? 'home-feed__media-grid--multi'
+            : '';
         const liked = Boolean(post.likedByCurrentUser);
         const authorName = post.authorName || post.author?.displayName || `Người dùng #${post.authorId}`;
+        const authorAvatar = post.authorAvatarUrl || post.author?.avatarUrl;
         const authorInitial = (authorName || currentUserInitial || 'U')[0]?.toUpperCase();
         const visibility = post.visibility || 'Công khai';
 
         return (
           <article key={post.id} className="home-card">
             <div className="home-card__header">
-              <div className="bento-avatar bento-avatar--small">{authorInitial}</div>
+              <AvatarBadge src={authorAvatar} fallback={authorInitial} size="small" title={authorName} />
               <div style={{ flex: 1 }}>
                 <div className="home-feed__name">{authorName}</div>
                 <div className="home-card__meta">
@@ -100,7 +110,7 @@ const PostList = ({
               {post.content && <p className="home-card__content">{post.content}</p>}
 
               {displayMedia.length > 0 && (
-                <div className="home-feed__media-grid home-feed__media-grid--capped">
+                <div className={`home-feed__media-grid ${mediaLayout}`}>
                   {displayMedia.map((media, idx) => {
                     const isVideo =
                       media.mediaType === 'VIDEO' ||
@@ -129,19 +139,19 @@ const PostList = ({
 
             <div className="home-react-bar">
               <button type="button" className={`home-react ${liked ? 'is-active' : ''}`} onClick={() => onLike(post.id, liked)}>
-                <HeartIcon size={20} active={liked} />
+                <HeartIcon size={18} active={liked} />
                 <span>{post.likeCount || 0}</span>
               </button>
               <button type="button" className="home-react" onClick={() => onOpenComments(post)}>
-                <CommentIcon size={20} />
+                <CommentIcon size={18} />
                 <span>{post.commentCount || 0} bình luận</span>
               </button>
               <button type="button" className="home-react">
-                <ShareIcon size={20} />
+                <ShareIcon size={18} />
                 <span>Chia sẻ</span>
               </button>
               <button type="button" className="home-react" aria-label="Lưu bài viết">
-                <BookmarkIcon size={20} />
+                <BookmarkIcon size={18} />
               </button>
             </div>
           </article>

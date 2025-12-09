@@ -103,6 +103,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 u.getDisplayName(),
                 u.getStatus(),
                 u.getRoles(),
+                u.getAvatarUrl(),
                 u.getCreatedAt(),
                 u.getUpdatedAt());
     }

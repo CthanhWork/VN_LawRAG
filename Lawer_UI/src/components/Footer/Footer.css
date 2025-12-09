@@ -55,3 +55,7 @@
   color: var(--text-primary);
   text-decoration: underline;
 }
+
+.footer__list li {
+  margin: 4px 0;
+}

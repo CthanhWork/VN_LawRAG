@@ -1,0 +1,53 @@
+body.admin-mode {
+  background: #f3f4f7;
+}
+
+.admin-coreui .sidebar {
+  width: 260px;
+}
+
+.admin-coreui .nav-icon-bullet {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.admin-coreui .nav-link.active .nav-icon-bullet {
+  background: #fff;
+}
+
+.admin-card {
+  border: 1px solid #dbe0e9;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: none;
+  padding: 16px;
+}
+
+.admin-card h6,
+.admin-card .card-title {
+  margin: 0 0 8px 0;
+  font-weight: 700;
+}
+
+.table-sm td,
+.table-sm th {
+  padding: 0.4rem 0.5rem;
+}
+
+.muted {
+  color: #6b7785;
+}
+
+.badge-pill {
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+
+.scroll-area {
+  max-height: 420px;
+  overflow: auto;
+}

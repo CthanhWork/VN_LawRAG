@@ -14,4 +14,5 @@ public interface UserService {
     User changePassword(Long userId, String currentPassword, String newPassword) throws CustomException;
     User resetPassword(String email, String newPassword) throws CustomException;
     User updateProfile(Long userId, String displayName) throws CustomException;
+    User updateAvatar(Long userId, String avatarUrl, String avatarPublicId) throws CustomException;
 }

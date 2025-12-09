@@ -37,6 +37,7 @@ export const UserProvider = ({ children }) => {
         id: decoded.sub ? Number(decoded.sub) : null,
         email: decoded.email || '',
         displayName: decoded.displayName || decoded.name || '',
+        avatarUrl: decoded.avatarUrl || '',
         roles,
       };
 

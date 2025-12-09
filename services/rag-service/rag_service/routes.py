@@ -1,13 +1,14 @@
-from flask import Blueprint, jsonify, request, Response
 import time
 from datetime import date
 
-from .metrics import REQ_COUNT, REQ_LAT, generate_latest, CONTENT_TYPE_LATEST
+from flask import Blueprint, jsonify, request, Response
+
 from . import state
-from .utils import parse_date
-from .retrieval import retrieve2, _enrich_contexts, expand_references
-from .answer import synthesize_answer2, violation_judgment_heuristic, build_structured_advice
 from .analysis_llm import violation_judgment_llm
+from .answer import synthesize_answer2, violation_judgment_heuristic, build_structured_advice, normalize_answer_vi
+from .metrics import REQ_COUNT, REQ_LAT, generate_latest, CONTENT_TYPE_LATEST
+from .retrieval import retrieve2, _enrich_contexts, expand_references
+from .utils import parse_date
 
 
 bp = Blueprint("rag", __name__)
@@ -53,7 +54,6 @@ def qa():
             return jsonify({"error": f"RAG chưa sẵn sàng: {state.init_error}"}), 503
 
         ctx = retrieve2(q, t, k=k)
-        # Expand references and enrich for fuller text before synthesizing
         ctx_expanded = expand_references(ctx, effective_at=t, max_extra=max(4, 12 - len(ctx)), question=q)
         rich_ctx = _enrich_contexts(ctx_expanded, limit=8)
         answer = synthesize_answer2(q, t, rich_ctx)
@@ -86,7 +86,9 @@ def gen():
         citations = []
         used_nodes = []
         for c in rich_ctx[:5]:
-            citations.append({"law_code": c.get("law_code"), "node_path": c.get("node_path"), "node_id": c.get("node_id")})
+            citations.append(
+                {"law_code": c.get("law_code"), "node_path": c.get("node_path"), "node_id": c.get("node_id")}
+            )
             if c.get("node_id") is not None:
                 used_nodes.append(c.get("node_id"))
         return jsonify({"answer": answer, "citations": citations, "used_nodes": used_nodes})
@@ -105,7 +107,6 @@ def reindex():
     info = {"ready": ok}
     if ok and state.col is not None:
         try:
-            # Clear existing vectors so downstream ingest can repopulate fresh embeddings.
             state.col.delete(where={})
             info["cleared"] = True
             info["count"] = 0
@@ -131,11 +132,7 @@ def admin_status():
         except Exception:
             count = None
     llm = state.llm_status(run_live=False)
-    return jsonify({
-        "ready": ready,
-        "vector_count": count,
-        "llm": llm,
-    })
+    return jsonify({"ready": ready, "vector_count": count, "llm": llm})
 
 
 @bp.post("/analyze")
@@ -156,17 +153,12 @@ def analyze():
             return jsonify({"error": f"RAG chưa sẵn sàng: {state.init_error}"}), 503
 
         ctx = retrieve2(q, t, k=k)
-        # Expand contexts by following in-text references (e.g., "Điều 8") and related decrees to include full articles
         ctx_expanded = expand_references(ctx, effective_at=t, max_extra=max(4, 12 - len(ctx)), question=q)
         rich_ctx = _enrich_contexts(ctx_expanded[:8], limit=8)
 
-        verdict = violation_judgment_llm(q, t, rich_ctx)
-        if not verdict:
-            verdict = violation_judgment_heuristic(q, rich_ctx)
+        verdict = violation_judgment_llm(q, t, rich_ctx) or violation_judgment_heuristic(q, rich_ctx)
 
-        # Chuẩn hóa dữ liệu trả về từ LLM/heuristic
         try:
-            # Nếu LLM trả về 'citations' nhưng không có 'matched', map sang matched
             if not verdict.get("matched") and verdict.get("citations"):
                 verdict["matched"] = verdict.get("citations") or []
 
@@ -176,25 +168,39 @@ def analyze():
                 key = (m.get("law_code") or "", m.get("node_path") or "", m.get("node_id"))
                 if key in allowed:
                     matched.append(m)
-            # Trong chế độ tư vấn, chúng ta không đánh giá vi phạm, nên decision sẽ chuẩn hóa thành INFO bên dưới.
             verdict["matched"] = matched
         except Exception:
             pass
 
-        # Bảo đảm luôn có answer: ưu tiên LLM; nếu thiếu thì dựng từ context
+        if not verdict.get("matched"):
+            fallback_cites = []
+            for ctx_item in rich_ctx[:5]:
+                if ctx_item.get("law_code") or ctx_item.get("node_path"):
+                    fallback_cites.append(
+                        {
+                            "law_code": ctx_item.get("law_code"),
+                            "node_path": ctx_item.get("node_path"),
+                            "node_id": ctx_item.get("node_id"),
+                        }
+                    )
+            verdict["matched"] = fallback_cites
+
         if verdict.get("answer"):
             answer_text = verdict.get("answer")
         else:
             answer_text = build_structured_advice(rich_ctx) or synthesize_answer2(q, t, rich_ctx)
-        verdict["answer"] = answer_text
+        verdict["answer"] = normalize_answer_vi(answer_text, rich_ctx)
+        if verdict.get("explanation"):
+            verdict["explanation"] = normalize_answer_vi(verdict.get("explanation"), rich_ctx, is_explanation=True)
+        if verdict.get("analysis"):
+            verdict["analysis"] = normalize_answer_vi(verdict.get("analysis"), rich_ctx, is_explanation=True)
+        else:
+            verdict["analysis"] = ""
 
-        # Chuẩn hóa decision: luôn là INFO trong chế độ tư vấn pháp lý
         verdict["decision"] = "INFO"
 
         used_nodes = [
-            m.get("node_id")
-            for m in (verdict.get("matched") or [])
-            if m.get("node_id") is not None
+            m.get("node_id") for m in (verdict.get("matched") or []) if m.get("node_id") is not None
         ]
 
         return jsonify(
@@ -202,6 +208,7 @@ def analyze():
                 "answer": verdict.get("answer"),
                 "decision": verdict.get("decision"),
                 "explanation": verdict.get("explanation"),
+                "analysis": verdict.get("analysis"),
                 "citations": verdict.get("matched"),
                 "effective_at": t,
                 "context": rich_ctx,

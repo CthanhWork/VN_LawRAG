@@ -27,12 +27,23 @@ const Header = () => {
       <div className="shell-container header__inner">
         <div className="header__left">
           <Link to="/" className="header__logo">
-            <div className="header__logo-mark">VL</div>
-            <div className="header__logo-text">
-              <span className="header__logo-title">VN Law</span>
-              <span className="header__logo-sub">Nền tảng pháp luật số</span>
-            </div>
+            <img className="header__logo-img" src="/coreui/assets/img/VNLAW.svg" alt="VNLAW logo" />
           </Link>
+          <nav className="header__nav">
+            <NavLink
+              to="/"
+              className={({ isActive }) => `header__link ${isActive ? 'is-active' : ''}`}
+              end
+            >
+              Trang chủ
+            </NavLink>
+            <NavLink
+              to="/chatbot"
+              className={({ isActive }) => `header__link ${isActive ? 'is-active' : ''}`}
+            >
+              Chatbot
+            </NavLink>
+          </nav>
         </div>
 
         <div className="header__account">
@@ -44,7 +55,7 @@ const Header = () => {
                 </NavLink>
               )}
               <div className="header__avatar" onClick={() => setOpenUser((v) => !v)}>
-                {initials}
+                {user?.avatarUrl ? <img src={user.avatarUrl} alt="Avatar" /> : initials}
               </div>
               <div className="header__user-info" onClick={() => setOpenUser((v) => !v)}>
                 <div className="header__user-name">{user?.displayName || 'Người dùng'}</div>

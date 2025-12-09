@@ -10,7 +10,8 @@ import ResetPassword from '../pages/ResetPassword/ResetPassword';
 import VerifyOtp from '../pages/VerifyOtp/VerifyOtp';
 import NotFound from '../pages/NotFound/NotFound';
 import Rag from '../pages/Rag/Rag';
-import AdminDashboard from '../pages/Admin/AdminDashboard';
+import Chatbot from '../pages/Chatbot/Chatbot';
+import AdminApp from '../pages/Admin/AdminApp';
 import ProtectedRoute from '../routes/ProtectedRoute';
 import AdminRoute from '../routes/AdminRoute';
 import Profile from '../pages/Profile/Profile';
@@ -22,8 +23,8 @@ const AppLayout = () => {
 
   return (
     <div className="app-shell">
-      <Header />
-      <main className={`app-content ${isAdminPage ? 'app-content--wide' : 'shell-container'}`}>
+      {!isAdminPage && <Header />}
+      <main className={`app-content ${isAdminPage ? 'app-content--admin' : 'shell-container'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -31,12 +32,13 @@ const AppLayout = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
+          <Route path="/chatbot" element={<Chatbot />} />
           <Route path="/rag" element={<Rag />} />
           <Route
-            path="/admin"
+            path="/admin/*"
             element={
               <AdminRoute>
-                <AdminDashboard />
+                <AdminApp />
               </AdminRoute>
             }
           />
@@ -60,7 +62,7 @@ const AppLayout = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <Footer />
+      {!isAdminPage && <Footer />}
     </div>
   );
 };

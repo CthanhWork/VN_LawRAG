@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 from typing import Any, Dict, Optional, Tuple
 
@@ -8,14 +8,19 @@ from .utils import safe_json_parse
 
 def _build_qu_prompts(question: str, effective_at: Optional[str]) -> Tuple[str, Dict[str, Any]]:
     """
-    Xây prompt cho bước LLM chuẩn hóa truy vấn (Query Understanding) dùng chung cho mọi case.
+    Xây prompt cho bước LLM chuẩn hóa truy vấn (Query Understanding) dạng chung cho mọi case.
     """
     sys = (
         "You are a Vietnamese law query-normalization assistant for a RAG system. "
+        "Your core task is to transform the user's question into a set of highly specific, effective, and short search subqueries for vector retrieval, ensuring maximal topical relevance. "
         "Always return JSON that follows the schema exactly. "
         "If you are unsure, reuse the normalized question as the only subquery. "
-        "Prefer concise subqueries that directly reference specific articles/clauses. "
+        "Prefer concise subqueries that directly quote or closely paraphrase key legal phrases from the relevant articles/clauses/văn bản. "
         "Do not fabricate legal text. "
+        "Identify the PRIMARY LEGAL INTENT and TOPIC (e.g., Quyền nuôi con, Chế độ tài sản, Xử phạt hành chính) and generate subqueries that solely focus on that intent. "
+        "STRICTLY AVOID procedural topics (án phí, thời hiệu, khởi kiện) and general phrases ('giải quyết tranh chấp') unless the question clearly asks about them. "
+        "Subqueries must use specific legal terminology (ví dụ: 'người trực tiếp nuôi con dưới 36 tháng tuổi', 'tài sản chung hợp nhất', 'thẩm quyền giải quyết') over generic terms. "
+        "The generated subqueries are the only chance to guide the RAG system to the correct legal article; make them as specific as possible to the exact legal condition or consequence sought. "
         "Although instructions are in English, every generated query/subquery must remain in Vietnamese."
     )
     user = {
@@ -35,7 +40,7 @@ def _build_qu_prompts(question: str, effective_at: Optional[str]) -> Tuple[str, 
         "rules": [
             "Must produce at least 1 subquery.",
             "If nothing else fits, set subqueries = [normalized] (or [question] if normalized empty).",
-            "Keep subqueries short and aligned with common law article wording.",
+            "Keep subqueries short and aligned with common law article wording; prioritize keywords tied to the primary intent (bỏ qua án phí/tố tụng nếu không phải trọng tâm).",
             "Output normalized + subqueries in Vietnamese.",
         ],
     }
@@ -66,7 +71,7 @@ def query_understanding_llm(question: str, effective_at: Optional[str] = None) -
                 generation_config={
                     "temperature": 0,
                     "response_mime_type": "application/json",
-                    "max_output_tokens": 3000,
+                    "max_output_tokens": 6000,
                 },
             )
             txt = getattr(resp, "text", None)
@@ -157,4 +162,3 @@ def query_understanding_llm(question: str, effective_at: Optional[str] = None) -
 
 
 __all__ = ["query_understanding_llm"]
-
