@@ -1,0 +1,439 @@
+﻿<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ChÃ­ Thanh DEV - RAG Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      /* --- Biáº¿n CSS (LIGHT MODE) --- */
+      :root {
+        --bg: #f4f6f8;        /* Light Gray/Off-White background */
+        --panel: #ffffff;     /* White panels */
+        --text: #1f2937;    
+        --muted: #6b7280;     
+        --border: #e5e7eb;   
+        --accent: #10b981;    
+        --accent-dark: #059669;
+        --radius-panel: 16px;
+        --radius-input: 10px;
+        --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      /* --- Cáº¥u trÃºc chung --- */
+      .page {
+        max-width: 1100px; /* TÄƒng chiá»u rá»™ng tá»‘i Ä‘a */
+        margin: 0 auto;
+        padding: 40px 24px 60px;
+      }
+      h1 {
+        font-size: 2.2rem;
+        margin: 0 0 4px;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        color: var(--accent-dark); /* MÃ u ná»•i báº­t cho tiÃªu Ä‘á» */
+      }
+      .muted { color: var(--muted); font-size: 14px; }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-panel);
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      /* --- Form vÃ  Input --- */
+      label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: block;
+        margin-bottom: 8px;
+        color: var(--text);
+        margin-top: 15px;
+      }
+      label:first-of-type { margin-top: 0; }
+      input, textarea {
+        width: 100%;
+        font-size: 1rem;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--border);
+        padding: 12px 14px;
+        background: var(--panel);
+        color: var(--text);
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      input:focus, textarea:focus {
+        border-color: var(--accent);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); /* Shadow xanh lÃ¡ */
+      }
+      textarea {
+        min-height: 200px; /* TÄƒng chiá»u cao máº·c Ä‘á»‹nh */
+        resize: vertical;
+      }
+
+      /* --- NÃºt báº¥m --- */
+      button {
+        width: 100%;
+        background: var(--accent);
+        border: none;
+        font-weight: 700;
+        cursor: pointer;
+        margin-top: 20px;
+        padding: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: white;
+        border-radius: var(--radius-input);
+        transition: background 0.2s, transform 0.1s;
+      }
+      button:hover:not(:disabled) {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+      }
+      button:disabled {
+        background: var(--border);
+        color: var(--muted);
+        cursor: not-allowed;
+        opacity: 0.8;
+      }
+
+      /* --- Káº¿t quáº£ vÃ  Cáº¥u trÃºc Grid --- */
+      .grid {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: 5fr 7fr;
+      }
+
+      /* --- Phong cÃ¡ch "Chat/TÆ° váº¥n" cho output --- */
+      .output-wrapper {
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+      }
+      .answer-box {
+        background: var(--bg); /* MÃ u ná»n nháº¡t Ä‘á»ƒ táº¡o cáº£m giÃ¡c 'bubble' */
+        padding: 18px;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--border);
+        white-space: normal;
+        line-height: 1.7;
+        flex-grow: 1; /* Äá»ƒ Ã´ tráº£ lá»i chiáº¿m khÃ´ng gian cÃ²n láº¡i */
+        margin-bottom: 15px;
+        font-size: 1rem;
+        word-break: break-word;
+      }
+      .answer-box.loading {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .answer-box p {
+        margin: 0 0 10px;
+      }
+      .answer-box h2,
+      .answer-box h3 {
+        margin: 0 0 10px;
+        color: var(--accent-dark);
+      }
+      .answer-box ul {
+        margin: 6px 0 12px;
+        padding-left: 20px;
+      }
+
+      /* --- Tháº» thÃ´ng tin (Tags) --- */
+      .tag-container {
+        margin-bottom: 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border: 1px solid #a7f3d0; /* Light blue border */
+        border-radius: 999px;
+        background: #ecfdf5; /* Very light blue background */
+        color: var(--accent-dark);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      /* --- Citations (TrÃ­ch dáº«n) --- */
+      .cites-title {
+        color: var(--text);
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+      }
+      .list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .item {
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--accent); /* Äiá»ƒm nháº¥n chat */
+        border-radius: var(--radius-input);
+        padding: 12px 15px;
+        background: #fcfcfc;
+        font-size: 0.95rem;
+      }
+      .item strong {
+        color: var(--accent-dark);
+        font-size: 1rem;
+        display: block;
+        margin-bottom: 2px;
+        font-weight: 600;
+      }
+      .item .muted {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .cites-list {
+        list-style: none;
+        padding: 0;
+        margin-top: 6px;
+        display: grid;
+        gap: 8px;
+      }
+      .cite-row {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-input);
+        padding: 10px 12px;
+        background: #fcfcfc;
+      }
+      .cite-no {
+        color: var(--accent-dark);
+        font-weight: 700;
+      }
+      .cite-law {
+        font-weight: 600;
+      }
+      .cite-path {
+        color: var(--muted);
+      }
+
+      /* --- Media Query --- */
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+        .page { padding: 20px 16px 40px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>HoÃ ng ChÃ­ Thanh DEV</h1>
+      <div class="muted" style="margin-bottom:25px;">
+        Giao diá»‡n thá»­ nghiá»‡m RAG thá»§ cÃ´ng. API Base: `http://localhost:8080/api/qa`.
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <label for="question">CÃ¢u há»i (Input)</label>
+          <textarea id="question" placeholder="Nháº­p cÃ¢u há»i phÃ¡p lÃ½ cá»§a báº¡n vÃ o Ä‘Ã¢y..."></textarea>
+
+          <label for="effectiveAt">NgÃ y hiá»‡u lá»±c (TÃ¹y chá»n)</label>
+          <input id="effectiveAt" type="date" placeholder="YYYY-MM-DD" />
+          
+          <button id="sendBtn">Gá»¬I</button>
+          
+          <div id="status" class="muted" style="margin-top:15px; text-align: center;"></div>
+        </div>
+
+        <div class="panel">
+          <div class="muted" style="margin-bottom:10px; font-weight: 600;">ðŸ¤– CÃ¢u tráº£ lá»i tá»« Há»‡ thá»‘ng RAG</div>
+          
+          <div class="output-wrapper">
+            <div id="answer" class="answer-box loading">
+              CÃ¢u tráº£ lá»i sáº½ Ä‘Æ°á»£c hiá»ƒn thá»‹ táº¡i Ä‘Ã¢y sau khi báº¡n Gá»¬I cÃ¢u há»i.
+            </div>
+
+            <div id="meta" class="tag-container"></div>
+            
+            <div id="cites"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+        <script>
+      const qs = (id) => document.getElementById(id);
+      const question = qs('question');
+      const effectiveAt = qs('effectiveAt');
+      const sendBtn = qs('sendBtn');
+      const statusEl = qs('status');
+      const answerEl = qs('answer');
+      const metaEl = qs('meta');
+      const citesEl = qs('cites');
+
+      const escapeHTML = (str = '') =>
+        str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      const formatAnswerHTML = (text = '') => {
+        const safe = escapeHTML(text.trim());
+        if (!safe) return '';
+
+        const withBold = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        const withHeadings = withBold
+          .replace(/^###\s*(.+)$/gm, '<h3>$1</h3>')
+          .replace(/^##\s*(.+)$/gm, '<h2>$1</h2>');
+
+        const blocks = withHeadings
+          .split(/\n{2,}/)
+          .map((blk) => blk.trim())
+          .filter(Boolean);
+
+        return blocks
+          .map((blk) => {
+            const lines = blk.split(/\n+/).filter(Boolean);
+            if (!lines.length) return '';
+
+            const first = lines[0];
+            if (first.startsWith('<h2') || first.startsWith('<h3')) {
+              const rest = lines.slice(1).join('<br>');
+              return rest ? `${first}<p>${rest}</p>` : first;
+            }
+
+            const isList = lines.every((l) => l.startsWith('- ') || l.startsWith('* '));
+            if (isList) {
+              const items = lines
+                .map((l) => l.replace(/^[-*]\s*/, '').trim())
+                .filter(Boolean)
+                .map((item) => `<li>${item}</li>`)
+                .join('');
+              return `<ul>${items}</ul>`;
+            }
+
+            return `<p>${lines.join('<br>')}</p>`;
+          })
+          .join('');
+      };
+
+      function renderAnswer(text) {
+        const html = formatAnswerHTML(text || '');
+        if (html) {
+          answerEl.innerHTML = html;
+        } else {
+          answerEl.textContent = 'Không có câu trả lời.';
+        }
+      }
+
+      function renderCitations(citations = []) {
+        if (!citations.length) {
+          citesEl.innerHTML = '';
+          return;
+        }
+        const items = citations
+          .map((c, idx) => {
+            const law = escapeHTML(c.lawCode || c.law_code || 'N/A');
+            const path = escapeHTML(c.nodePath || c.node_path || '');
+            return `
+              <li class="cite-row">
+                <span class="cite-no">[${idx + 1}]</span>
+                <div>
+                  <div class="cite-law">${law}</div>
+                  <div class="cite-path">${path}</div>
+                </div>
+              </li>
+            `;
+          })
+          .join('');
+        citesEl.innerHTML = `
+          <div class="cites-title">📚 Tài liệu Tham khảo</div>
+          <ul class="cites-list">${items}</ul>
+        `;
+      }
+      
+      // Khởi tạo giá trị mặc định cho textarea
+      question.value = "Tôi là anh K, sau ly hôn chị L đang nuôi con. Chị L cản trở tôi thăm nom và tôi nghi ngờ tiền cấp dưỡng không dùng cho con. Tôi có thể làm gì?";
+
+      // Xử lý API BASE
+      const urlParams = new URLSearchParams(window.location.search);
+      const apiOverride = urlParams.get('apiBase');
+      const API_BASE = (apiOverride || 'http://localhost:8080/api/qa').replace(/\/$/, '');
+
+      if (window.location.protocol === 'file:') {
+        statusEl.innerHTML = '❌ Đang mở qua `file://`. Hãy serve file này qua `http://` để tránh lỗi CORS.<br>API Base: ' + API_BASE;
+      } else {
+         statusEl.textContent = 'Sẵn sàng.';
+      }
+
+      async function callRag() {
+        statusEl.textContent = '';
+        answerEl.innerHTML = '';
+        metaEl.innerHTML = '';
+        citesEl.innerHTML = '';
+
+        const q = question.value.trim();
+        if (!q) {
+          statusEl.textContent = '❗ Vui lòng nhập câu hỏi.';
+          return;
+        }
+
+        answerEl.classList.add('loading');
+        answerEl.textContent = 'Đang xử lý...';
+        sendBtn.disabled = true;
+        statusEl.textContent = 'Đang gửi và chờ phản hồi...';
+        
+        try {
+          const params = new URLSearchParams();
+          if (!API_BASE.includes('k=')) params.set('k', '10'); 
+          if (effectiveAt.value) params.set('effectiveAt', effectiveAt.value);
+          
+          const url = `${API_BASE}/analyze${params.toString() ? '?' + params.toString() : ''}`;
+          
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: q }),
+          });
+          
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data?.message || 'Lỗi API không xác định');
+          
+          const payload = data?.data || data;
+          renderAnswer(payload?.answer);
+          
+          // Hiển thị Meta tags
+          if (payload?.decision || payload?.effectiveAt) {
+              let metaTags = '';
+              if (payload.decision) metaTags += `<span class="tag">Decision: ${payload.decision}</span>`;
+              if (payload.effectiveAt) metaTags += `<span class="tag">Effective: ${payload.effectiveAt}</span>`;
+              metaEl.innerHTML = metaTags;
+          }
+          
+          renderCitations(payload?.citations || []);
+          statusEl.textContent = '✅ Hoàn thành.';
+          
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = '❌ Lỗi: ' + (err.message || 'Không thể kết nối đến API.');
+          answerEl.textContent = 'Đã xảy ra lỗi khi gọi API. Vui lòng kiểm tra console hoặc đường dẫn API.';
+        } finally {
+          sendBtn.disabled = false;
+          answerEl.classList.remove('loading');
+        }
+      }
+
+      sendBtn.addEventListener('click', callRag);
+    </script>
+  </body>
+</html>
+

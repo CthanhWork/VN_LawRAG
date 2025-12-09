@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Montserrat:wght@500;600;700&family=Rubik:wght@400;500;700&family=Space+Grotesk:wght@500;600&display=swap');
+
+:root {
+  --bg: #e7eddf;
+  --surface: #f4f7f0;
+  --surface-strong: #e9eee2;
+  --surface-subtle: #dfe7d6;
+  --border: rgba(93, 123, 111, 0.22);
+  --border-strong: rgba(93, 123, 111, 0.48);
+  --text-primary: #1f2a23;
+  --text-secondary: #2f3c34;
+  --text-muted: #607064;
+  --accent: #5d7b6f;
+  --accent-2: #a4c3a2;
+  --success: #3b945e;
+  --danger: #d36161;
+  --shadow-card: 0 10px 24px rgba(31, 42, 35, 0.08);
+  --shadow-soft: 0 10px 24px rgba(31, 42, 35, 0.1);
+  --font-heading: 'Montserrat', 'Space Grotesk', 'Be Vietnam Pro', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Be Vietnam Pro', 'Rubik', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.shell-container {
+  width: min(1280px, 94%);
+  margin: 0 auto;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+  padding: 32px 0 56px;
+}
+
+.app-content--wide {
+  width: 100%;
+  max-width: none;
+  padding: 32px 24px 56px;
+  margin: 0 auto;
+}
+
+.app-content--admin {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  margin: 0 auto;
+  background: var(--bg);
+}
+
+.page-card {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 32px;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  font-family: var(--font-heading);
+}
+
+.page-subtitle {
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.page-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  padding: 14px 0;
+}
+
+.page-loading__spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid rgba(148, 163, 184, 0.35);
+  border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

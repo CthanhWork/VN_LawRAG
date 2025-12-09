@@ -1,0 +1,111 @@
+{
+    "info": {
+        "name": "Law Service API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Get All Laws",
+            "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/laws",
+                "description": "Retrieves all laws with pagination"
+            }
+        },
+        {
+            "name": "Get Law by ID",
+            "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/laws/1",
+                "description": "Retrieves a specific law by ID"
+            }
+        },
+        {
+            "name": "Get Law Nodes",
+            "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/laws/1/nodes",
+                "description": "Retrieves nodes for a specific law",
+                "query": [
+                    {
+                        "key": "effectiveAt",
+                        "value": "2024-01-01",
+                        "description": "Optional: Filter by effective date"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Search Nodes",
+            "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/nodes/search",
+                "description": "Search nodes by content",
+                "query": [
+                    {
+                        "key": "keyword",
+                        "value": "tax",
+                        "description": "Search keyword"
+                    },
+                    {
+                        "key": "effectiveAt",
+                        "value": "2024-01-01",
+                        "description": "Optional: Filter by effective date"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Ask Question",
+            "request": {
+                "method": "POST",
+                "url": "{{baseUrl}}/api/qa",
+                "description": "Ask a question about laws",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"question\": \"Điều kiện kết hôn là gì?\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "name": "Health Check",
+            "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/actuator/health",
+                "description": "Check service health status"
+            }
+        },
+        {
+            "name": "Readiness Check",
+            "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/actuator/health/readiness",
+                "description": "Check if service is ready to handle requests"
+            }
+        },
+        {
+            "name": "Suggest Laws",
+            "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/laws/suggest",
+                "description": "Autocomplete suggestions for laws",
+                "query": [
+                    { "key": "keyword", "value": "hon", "description": "Keyword to suggest" },
+                    { "key": "limit", "value": "10", "description": "Max results (1-50)" }
+                ]
+            }
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:8080",
+            "type": "string"
+        }
+    ]
+}

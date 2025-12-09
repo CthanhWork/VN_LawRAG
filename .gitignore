@@ -1,0 +1,41 @@
+# Java build outputs
+services/law-service/target/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project docs (ignore docs except weekly reports we need to track)
+docs/
+!docs/
+docs/**
+!docs/BAO_CAO_TUAN_08.md
+!docs/BAO_CAO_TUAN_08.docx
+
+
+# env files
+.env
+.env.local
+*.env
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+**/.venv/
+**/venv/
+
+# App uploads (user-generated media)
+uploads/
+
+# Java build outputs (social-service)
+services/social-service/target/

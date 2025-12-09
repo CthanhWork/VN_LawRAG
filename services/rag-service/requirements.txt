@@ -1,0 +1,13 @@
+flask
+flask-cors
+sentence-transformers
+torch>=2.6.0
+transformers>=4.46.0
+chromadb
+pymysql
+cryptography>=41.0.0
+prometheus-client
+requests
+google-generativeai>=0.8.0
+PyPDF2
+pdfminer.six

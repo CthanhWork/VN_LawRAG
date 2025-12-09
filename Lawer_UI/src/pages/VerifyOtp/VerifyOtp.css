@@ -1,0 +1,15 @@
+.auth__otp-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.auth__submit--ghost {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.auth__submit--ghost:disabled {
+  opacity: 0.6;
+}

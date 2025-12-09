@@ -1,0 +1,41 @@
+.notfound {
+  padding: 40px 32px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.notfound__code {
+  font-size: 96px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.notfound__title {
+  margin: 8px 0 4px;
+  color: var(--text-primary);
+  font-size: 28px;
+}
+
+.notfound__desc {
+  margin: 0 auto;
+  max-width: 560px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.notfound__cta {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #041224;
+  font-weight: 700;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+
+.notfound__cta:hover {
+  transform: translateY(-1px);
+}

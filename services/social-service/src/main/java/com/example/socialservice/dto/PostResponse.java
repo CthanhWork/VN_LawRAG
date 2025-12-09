@@ -1,0 +1,58 @@
+package com.example.socialservice.dto;
+
+import java.io.Serializable;
+import java.time.OffsetDateTime;
+import java.util.List;
+
+public class PostResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Long id;
+    private Long authorId;
+    private String content;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+    private List<PostMediaResponse> media;
+    private long likeCount;
+    private long commentCount;
+    private boolean likedByCurrentUser;
+    private com.example.socialservice.enums.PostVisibility visibility;
+    private String authorName;
+    private String authorAvatarUrl;
+
+    public PostResponse() {}
+
+    public PostResponse(Long id, Long authorId, String content, OffsetDateTime createdAt, OffsetDateTime updatedAt, List<PostMediaResponse> media) {
+        this.id = id;
+        this.authorId = authorId;
+        this.content = content;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.media = media;
+    }
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Long getAuthorId() { return authorId; }
+    public void setAuthorId(Long authorId) { this.authorId = authorId; }
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public OffsetDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public List<PostMediaResponse> getMedia() { return media; }
+    public void setMedia(List<PostMediaResponse> media) { this.media = media; }
+    public long getLikeCount() { return likeCount; }
+    public void setLikeCount(long likeCount) { this.likeCount = likeCount; }
+    public long getCommentCount() { return commentCount; }
+    public void setCommentCount(long commentCount) { this.commentCount = commentCount; }
+    public boolean isLikedByCurrentUser() { return likedByCurrentUser; }
+    public void setLikedByCurrentUser(boolean likedByCurrentUser) { this.likedByCurrentUser = likedByCurrentUser; }
+    public com.example.socialservice.enums.PostVisibility getVisibility() { return visibility; }
+    public void setVisibility(com.example.socialservice.enums.PostVisibility visibility) { this.visibility = visibility; }
+    public String getAuthorName() { return authorName; }
+    public void setAuthorName(String authorName) { this.authorName = authorName; }
+    public String getAuthorAvatarUrl() { return authorAvatarUrl; }
+    public void setAuthorAvatarUrl(String authorAvatarUrl) { this.authorAvatarUrl = authorAvatarUrl; }
+}
