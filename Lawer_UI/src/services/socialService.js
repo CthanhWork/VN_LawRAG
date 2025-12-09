@@ -18,6 +18,26 @@ export const changePassword = async (payload) => {
   return response.data;
 };
 
-const socialService = { updateProfile, changePassword };
+export const uploadAvatar = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await callService('social', {
+    method: 'post',
+    url: '/api/social/users/me/avatar',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const deleteAvatar = async () => {
+  const response = await callService('social', {
+    method: 'delete',
+    url: '/api/social/users/me/avatar',
+  });
+  return response.data;
+};
+
+const socialService = { updateProfile, changePassword, uploadAvatar, deleteAvatar };
 
 export default socialService;

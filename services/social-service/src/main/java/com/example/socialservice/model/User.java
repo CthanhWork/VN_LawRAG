@@ -25,6 +25,12 @@ public class User {
     @Column(name = "roles", nullable = false, length = 100)
     private String roles = "USER";
 
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
+
+    @Column(name = "avatar_public_id", length = 255)
+    private String avatarPublicId;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
@@ -47,9 +53,12 @@ public class User {
     public void setStatus(String status) { this.status = status; }
     public String getRoles() { return roles; }
     public void setRoles(String roles) { this.roles = roles; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+    public String getAvatarPublicId() { return avatarPublicId; }
+    public void setAvatarPublicId(String avatarPublicId) { this.avatarPublicId = avatarPublicId; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
-

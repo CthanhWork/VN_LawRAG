@@ -17,6 +17,8 @@ public class PostResponse implements Serializable {
     private long commentCount;
     private boolean likedByCurrentUser;
     private com.example.socialservice.enums.PostVisibility visibility;
+    private String authorName;
+    private String authorAvatarUrl;
 
     public PostResponse() {}
 
@@ -49,4 +51,8 @@ public class PostResponse implements Serializable {
     public void setLikedByCurrentUser(boolean likedByCurrentUser) { this.likedByCurrentUser = likedByCurrentUser; }
     public com.example.socialservice.enums.PostVisibility getVisibility() { return visibility; }
     public void setVisibility(com.example.socialservice.enums.PostVisibility visibility) { this.visibility = visibility; }
+    public String getAuthorName() { return authorName; }
+    public void setAuthorName(String authorName) { this.authorName = authorName; }
+    public String getAuthorAvatarUrl() { return authorAvatarUrl; }
+    public void setAuthorAvatarUrl(String authorAvatarUrl) { this.authorAvatarUrl = authorAvatarUrl; }
 }

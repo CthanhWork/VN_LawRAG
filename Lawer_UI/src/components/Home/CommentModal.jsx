@@ -1,5 +1,6 @@
 import { serviceBaseUrls } from '../../configs/serviceMap';
 import { CloseIcon, SendIcon } from './BentoIcons';
+import AvatarBadge from './AvatarBadge';
 import './HomeShared.css';
 
 const formatTime = (value) => {
@@ -17,13 +18,18 @@ const CommentModal = ({
   commentInput,
   onChangeInput,
   onSubmit,
+  currentUserAvatar,
+  currentUserName,
   onClose,
 }) => {
   if (!post) return null;
 
   const list = commentState?.list || [];
   const authorName = post.authorName || post.author?.displayName || `User #${post.authorId}`;
+  const authorAvatar = post.authorAvatarUrl || post.author?.avatarUrl;
   const authorInitial = (authorName || 'U')[0]?.toUpperCase();
+  const currentInitial = (currentUserName || 'U')[0]?.toUpperCase();
+  const commenterAvatar = currentUserAvatar || authorAvatar;
 
   const renderMedia = () => {
     if (!post.media || !post.media.length) return null;
@@ -51,7 +57,7 @@ const CommentModal = ({
       <div className="home-modal home-modal--comments" onClick={(e) => e.stopPropagation()}>
         <div className="home-modal__header">
           <div className="home-comment__head">
-            <div className="bento-avatar bento-avatar--small">{authorInitial}</div>
+            <AvatarBadge src={authorAvatar} fallback={authorInitial} size="small" title={authorName} />
             <div>
               <div className="home-feed__name">{authorName}</div>
               <div className="home-feed__muted">{formatTime(post.createdAt)}</div>
@@ -82,7 +88,7 @@ const CommentModal = ({
                   const initial = (name || 'U')[0]?.toUpperCase();
                   return (
                     <div key={cmt.id} className="home-feed__comment">
-                      <div className="home-feed__comment-avatar">{initial}</div>
+                      <AvatarBadge src={cmt.authorAvatarUrl} fallback={initial} size="small" title={name} />
                       <div className="home-feed__comment-body">
                         <div className="home-feed__comment-meta">
                           <span className="home-feed__comment-author">{name}</span>
@@ -102,7 +108,7 @@ const CommentModal = ({
                 onSubmit(post.id);
               }}
             >
-              <div className="home-feed__comment-avatar home-comment__avatar">{authorInitial}</div>
+              <AvatarBadge src={commenterAvatar} fallback={currentInitial} size="small" title={currentUserName || authorName} />
               <input
                 className="home-feed__comment-input"
                 placeholder="Viết bình luận..."

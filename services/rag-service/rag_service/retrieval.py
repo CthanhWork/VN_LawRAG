@@ -15,6 +15,14 @@ from .utils import (
 )
 from .llm_qu import query_understanding_llm
 from . import config as _cfg
+import re
+
+METADATA_PATTERNS = [
+    r"(?i)chính phủ quy định chi tiết điều này\s*\.?\s*\d*$",
+    r"(?i)bộ luật này có hiệu lực kể từ ngày.*",
+    r"(?i)luật này thay thế.*",
+    r"(?i)pháp luật quy định chi tiết.*",
+]
 
 
 _LAW_CODE_ID_CACHE: Dict[str, Optional[int]] = {}
@@ -315,6 +323,8 @@ def expand_references(contexts: List[dict], effective_at: Optional[str] = None, 
     """
     if not contexts:
         return []
+    qnorm = norm_text(question or "")
+    key_terms = [w for w in qnorm.split() if len(w) >= 4][:12]
     seen_ids: Set[Any] = set(c.get("node_id") for c in contexts if c.get("node_id") is not None)
     additions: List[dict] = []
     for c in contexts[: max(8, len(contexts))]:
@@ -335,6 +345,9 @@ def expand_references(contexts: List[dict], effective_at: Optional[str] = None, 
                     extra_items = _ctx_items_for_article_and_children(law_id, art_id, max_children=6) or []
                     for it in extra_items:
                         if it.get("node_id") not in seen_ids and it.get("content"):
+                            content_norm = norm_text(it.get("content") or "")
+                            if key_terms and not any(term in content_norm for term in key_terms):
+                                continue
                             additions.append(it)
                             seen_ids.add(it.get("node_id"))
                             if len(additions) >= max_extra:
@@ -348,6 +361,9 @@ def expand_references(contexts: List[dict], effective_at: Optional[str] = None, 
                         extra_items = _ctx_items_for_article_and_children(law_id, art_id, max_children=6) or []
                         for it in extra_items:
                             if it.get("node_id") not in seen_ids and it.get("content"):
+                                content_norm = norm_text(it.get("content") or "")
+                                if key_terms and not any(term in content_norm for term in key_terms):
+                                    continue
                                 additions.append(it)
                                 seen_ids.add(it.get("node_id"))
                                 if len(additions) >= max_extra:
@@ -438,6 +454,13 @@ def _enrich_contexts(contexts: List[dict], limit: int = 8) -> List[dict]:
         if full and isinstance(full, dict):
             text = (full.get("contentText") or c.get("content") or "").strip()
             path = (full.get("path") or c.get("node_path") or "").strip()
+            is_metadata_node = False
+            for pat in METADATA_PATTERNS:
+                if re.search(pat, text):
+                    is_metadata_node = True
+                    break
+            if is_metadata_node:
+                continue
             out.append({
                 "law_code": c.get("law_code"),
                 "node_path": path,
@@ -446,11 +469,19 @@ def _enrich_contexts(contexts: List[dict], limit: int = 8) -> List[dict]:
                 "doc_type": c.get("doc_type") or "",
             })
         else:
+            text = (c.get("content") or "").strip()
+            is_metadata_node = False
+            for pat in METADATA_PATTERNS:
+                if re.search(pat, text):
+                    is_metadata_node = True
+                    break
+            if is_metadata_node:
+                continue
             out.append({
                 "law_code": c.get("law_code"),
                 "node_path": c.get("node_path") or "",
                 "node_id": node_id,
-                "content": c.get("content") or "",
+                "content": text,
                 "doc_type": c.get("doc_type") or "",
             })
     return out
@@ -468,7 +499,29 @@ def retrieve(question: str, effective_at: str, k: int = 8):
         ]
 
     qv = state.emb.encode([question])[0].tolist()
-    res = state.col.query(query_embeddings=[qv], n_results=k)
+    try:
+        res = state.col.query(query_embeddings=[qv], n_results=k)
+    except Exception as err:
+        try:
+            import chromadb
+
+            recoverable = (
+                isinstance(err, chromadb.errors.NotFoundError)
+                or isinstance(err, chromadb.errors.InternalError)
+                or "Nothing found on disk" in str(err)
+            )
+            if recoverable:
+                state.col = state.client.get_or_create_collection(
+                    "law_chunks", metadata={"hnsw:space": "cosine"}
+                )
+                try:
+                    res = state.col.query(query_embeddings=[qv], n_results=k)
+                except Exception:
+                    res = {"documents": [[]], "metadatas": [[]]}
+            else:
+                raise
+        except Exception:
+            res = {"documents": [[]], "metadatas": [[]]}
     docs = res.get("documents", [[]])[0]
     metas = res.get("metadatas", [[]])[0]
 
@@ -558,12 +611,48 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             deduped.append(q)
     queries = deduped[:8]
     qvecs = [state.emb.encode([q])[0].tolist() for q in queries]
+    qnorm = norm_text(question)
+    procedural_tokens = ["an phi", "an le", "le phi", "khoi kien", "to tung", "thu tuc", "thoi hieu", "toa an"]
+    key_terms = [w for w in qnorm.split() if len(w) >= 4][:12]
+    is_procedural_q = any(tok in qnorm for tok in procedural_tokens)
+    if pat_intent and "procedure" in str(pat_intent).lower():
+        is_procedural_q = True
+    noisy_doc_types = {"RESOLUTION", "CIRCULAR", "DECREE", "NGHI QUYET", "THONG TU"}
+    offtopic_markers = ["tuyen bo chet", "tuyen bo mot nguoi da chet", "an phi", "le phi", "thoi hieu khoi kien", "thu tuc", "toa an"]
 
-    res = state.col.query(
-        query_embeddings=qvecs,
-        n_results=max(k, 8),
-        include=["documents", "metadatas", "distances"],
-    )
+    try:
+        res = state.col.query(
+            query_embeddings=qvecs,
+            n_results=max(k, 8),
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception as err:
+        try:
+            import chromadb
+
+            recoverable = (
+                isinstance(err, chromadb.errors.NotFoundError)
+                or isinstance(err, chromadb.errors.InternalError)
+                or "Nothing found on disk" in str(err)
+            )
+            if recoverable:
+                state.col = state.client.get_or_create_collection(
+                    "law_chunks", metadata={"hnsw:space": "cosine"}
+                )
+                try:
+                    res = state.col.query(
+                        query_embeddings=qvecs,
+                        n_results=max(k, 8),
+                        include=["documents", "metadatas", "distances"],
+                    )
+                except Exception:
+                    # As a last resort, return empty results instead of breaking the API
+                    res = {"documents": [[]], "metadatas": [[]], "distances": [[]]}
+            else:
+                raise
+        except Exception:
+            # Return empty results to avoid 500 and let downstream fallback handle it
+            res = {"documents": [[]], "metadatas": [[]], "distances": [[]]}
 
     merged: Dict[Any, Dict[str, Any]] = {}
     distances = res.get("distances", [])
@@ -590,6 +679,20 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             # Áp dụng các penalize/boost generically, không cứng theo từng kịch bản
             sim = penalize_noise(text or "", sim)
             sim = penalize_offtopic(text or "", sim)
+            doc_type_val = ((m.get("doc_type") if m else "") or "").upper()
+            path_norm = norm_text((m.get("node_path") if m else "") or "")
+            content_norm = norm_text(text or "")
+            procedural_hit = any(tok in content_norm for tok in procedural_tokens) or any(
+                tok in path_norm for tok in procedural_tokens
+            )
+            if key_terms and not any(term in content_norm for term in key_terms):
+                sim *= 0.6
+            if (not is_procedural_q) and (doc_type_val in noisy_doc_types or procedural_hit):
+                sim *= 0.45
+            if (not is_procedural_q) and any(mark in content_norm for mark in offtopic_markers):
+                sim *= 0.3
+            if (not is_procedural_q) and doc_type_val in {"LAW", "NGHI DINH", "NGHIDINH", "DECREE"}:
+                sim *= 1.08
             if node_id not in merged or sim > merged[node_id]["_sim"]:
                 merged[node_id] = {
                     "law_code": m.get("law_code") if m else None,
@@ -617,6 +720,8 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
             filtered.append(it)
     items = filtered or candidates
     items.sort(key=lambda x: x.get("_sim", 0.0), reverse=True)
+    # Loại bỏ các node có điểm quá thấp để tránh nhiễu (điểm < 0.3)
+    items = [it for it in items if it.get("_sim", 0.0) >= 0.3] or items
     out = [
         {
             "law_code": it.get("law_code"),
@@ -632,3 +737,4 @@ def retrieve2(question: str, effective_at: str, k: int = 8):
 
 
 __all__ = ["retrieve", "retrieve2", "_enrich_contexts", "expand_references"]
+

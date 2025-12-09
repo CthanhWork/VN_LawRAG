@@ -6,14 +6,16 @@ public class LoginResponse {
     private Long id;
     private String email;
     private String displayName;
+    private String avatarUrl;
 
     public LoginResponse(){}
-    public LoginResponse(String token, String refreshToken, Long id, String email, String displayName) {
+    public LoginResponse(String token, String refreshToken, Long id, String email, String displayName, String avatarUrl) {
         this.token = token;
         this.refreshToken = refreshToken;
         this.id = id;
         this.email = email;
         this.displayName = displayName;
+        this.avatarUrl = avatarUrl;
     }
     public String getToken() { return token; }
     public void setToken(String token) { this.token = token; }
@@ -25,4 +27,6 @@ public class LoginResponse {
     public void setEmail(String email) { this.email = email; }
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 }

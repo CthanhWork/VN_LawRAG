@@ -35,6 +35,26 @@ public interface LawNodeRepository extends JpaRepository<LawNode, Long> {
         @Param("effectiveAt") LocalDate effectiveAt, 
         Pageable pageable
     );
+
+    @Query("SELECT n FROM LawNode n WHERE " +
+           "n.law.id = :lawId AND " +
+           "((:parentId IS NULL AND n.parent IS NULL) OR (n.parent.id = :parentId)) AND " +
+           "(n.effectiveStart IS NULL OR n.effectiveStart <= :effectiveAt) AND " +
+           "(n.effectiveEnd IS NULL OR n.effectiveEnd >= :effectiveAt)")
+    Page<LawNode> findByLaw_IdAndParentIdEffectiveAt(
+        @Param("lawId") Long lawId,
+        @Param("parentId") Long parentId,
+        @Param("effectiveAt") LocalDate effectiveAt,
+        Pageable pageable
+    );
+
+    @Query("SELECT n FROM LawNode n WHERE n.law.id = :lawId AND " +
+           "((:parentId IS NULL AND n.parent IS NULL) OR (n.parent.id = :parentId))")
+    Page<LawNode> findByLaw_IdAndParentId(
+        @Param("lawId") Long lawId,
+        @Param("parentId") Long parentId,
+        Pageable pageable
+    );
     
     @Query("SELECT n FROM LawNode n WHERE " +
            "LOWER(n.contentText) LIKE LOWER(CONCAT('%', :keyword, '%')) AND " +

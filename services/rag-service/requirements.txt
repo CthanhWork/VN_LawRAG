@@ -1,6 +1,8 @@
 flask
 flask-cors
 sentence-transformers
+torch>=2.6.0
+transformers>=4.46.0
 chromadb
 pymysql
 cryptography>=41.0.0

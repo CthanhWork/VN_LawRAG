@@ -11,6 +11,8 @@ public class CommentResponse implements Serializable {
     private Long authorId;
     private String content;
     private OffsetDateTime createdAt;
+    private String authorName;
+    private String authorAvatarUrl;
 
     public CommentResponse() {}
 
@@ -32,4 +34,8 @@ public class CommentResponse implements Serializable {
     public void setContent(String content) { this.content = content; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public String getAuthorName() { return authorName; }
+    public void setAuthorName(String authorName) { this.authorName = authorName; }
+    public String getAuthorAvatarUrl() { return authorAvatarUrl; }
+    public void setAuthorAvatarUrl(String authorAvatarUrl) { this.authorAvatarUrl = authorAvatarUrl; }
 }

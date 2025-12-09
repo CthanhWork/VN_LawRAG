@@ -9,15 +9,17 @@ public class UserProfileResponse {
     private String displayName;
     private String status;
     private String roles;
+    private String avatarUrl;
 
     public UserProfileResponse() {}
 
-    public UserProfileResponse(Long id, String email, String displayName, String status, String roles) {
+    public UserProfileResponse(Long id, String email, String displayName, String status, String roles, String avatarUrl) {
         this.id = id;
         this.email = email;
         this.displayName = displayName;
         this.status = status;
         this.roles = roles;
+        this.avatarUrl = avatarUrl;
     }
 
     public Long getId() { return id; }
@@ -30,4 +32,6 @@ public class UserProfileResponse {
     public void setStatus(String status) { this.status = status; }
     public String getRoles() { return roles; }
     public void setRoles(String roles) { this.roles = roles; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 }

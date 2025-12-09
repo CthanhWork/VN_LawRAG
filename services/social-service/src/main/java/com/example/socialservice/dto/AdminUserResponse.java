@@ -11,18 +11,21 @@ public class AdminUserResponse implements Serializable {
     private String displayName;
     private String status;
     private String roles;
+    private String avatarUrl;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 
     public AdminUserResponse() {}
 
     public AdminUserResponse(Long id, String email, String displayName, String status, String roles,
+                             String avatarUrl,
                              OffsetDateTime createdAt, OffsetDateTime updatedAt) {
         this.id = id;
         this.email = email;
         this.displayName = displayName;
         this.status = status;
         this.roles = roles;
+        this.avatarUrl = avatarUrl;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -37,6 +40,8 @@ public class AdminUserResponse implements Serializable {
     public void setStatus(String status) { this.status = status; }
     public String getRoles() { return roles; }
     public void setRoles(String roles) { this.roles = roles; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }

@@ -9,10 +9,12 @@ import com.example.socialservice.enums.StatusCode;
 import com.example.socialservice.exception.CustomException;
 import com.example.socialservice.model.Post;
 import com.example.socialservice.model.PostMedia;
+import com.example.socialservice.model.User;
 import com.example.socialservice.repository.PostCommentRepository;
 import com.example.socialservice.repository.PostLikeRepository;
 import com.example.socialservice.repository.PostMediaRepository;
 import com.example.socialservice.repository.PostRepository;
+import com.example.socialservice.repository.UserRepository;
 import com.example.socialservice.service.AdminPostService;
 import com.example.socialservice.service.CacheEvictService;
 import org.springframework.data.domain.PageRequest;
@@ -31,17 +33,20 @@ public class AdminPostServiceImpl implements AdminPostService {
     private final PostMediaRepository postMediaRepository;
     private final PostLikeRepository postLikeRepository;
     private final PostCommentRepository postCommentRepository;
+    private final UserRepository userRepository;
     private final CacheEvictService cacheEvictService;
 
     public AdminPostServiceImpl(PostRepository postRepository,
                                 PostMediaRepository postMediaRepository,
                                 PostLikeRepository postLikeRepository,
                                 PostCommentRepository postCommentRepository,
+                                UserRepository userRepository,
                                 CacheEvictService cacheEvictService) {
         this.postRepository = postRepository;
         this.postMediaRepository = postMediaRepository;
         this.postLikeRepository = postLikeRepository;
         this.postCommentRepository = postCommentRepository;
+        this.userRepository = userRepository;
         this.cacheEvictService = cacheEvictService;
     }
 
@@ -90,8 +95,22 @@ public class AdminPostServiceImpl implements AdminPostService {
         if (post == null) throw new CustomException(StatusCode.NOT_FOUND);
         var pageable = PageRequest.of(sanitizePage(page), sanitizeSize(size));
         var pg = postCommentRepository.findByPost_IdOrderByCreatedAtAsc(postId, pageable);
-        var items = pg.getContent().stream()
-                .map(c -> new CommentResponse(c.getId(), postId, c.getAuthorId(), c.getContent(), c.getCreatedAt()))
+        var comments = pg.getContent();
+        var authorIds = comments.stream().map(com.example.socialservice.model.PostComment::getAuthorId)
+                .filter(Objects::nonNull).distinct().toList();
+        Map<Long, User> userMap = authorIds.isEmpty() ? Map.of()
+                : userRepository.findAllById(authorIds).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
+        var items = comments.stream()
+                .map(c -> {
+                    var resp = new CommentResponse(c.getId(), postId, c.getAuthorId(), c.getContent(), c.getCreatedAt());
+                    var author = userMap.get(c.getAuthorId());
+                    if (author != null) {
+                        resp.setAuthorName(author.getDisplayName());
+                        resp.setAuthorAvatarUrl(author.getAvatarUrl());
+                    }
+                    return resp;
+                })
                 .toList();
         return new PageResponse<>(items, pg.getNumber(), pg.getSize(), pg.getTotalElements(), pg.getTotalPages(),
                 pg.hasNext(), pg.hasPrevious());
@@ -112,6 +131,10 @@ public class AdminPostServiceImpl implements AdminPostService {
     private PageResponse<PostResponse> mapPage(org.springframework.data.domain.Page<Post> pageObj) {
         List<Post> posts = pageObj.getContent();
         List<Long> ids = posts.stream().map(Post::getId).toList();
+        List<Long> authorIds = posts.stream().map(Post::getAuthorId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, User> userMap = authorIds.isEmpty() ? Map.of()
+                : userRepository.findAllById(authorIds).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
 
         Map<Long, List<PostMediaResponse>> mediaMap = new HashMap<>();
         if (!ids.isEmpty()) {
@@ -145,6 +168,11 @@ public class AdminPostServiceImpl implements AdminPostService {
             resp.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
             resp.setLikedByCurrentUser(false);
             resp.setVisibility(p.getVisibility());
+            var author = userMap.get(p.getAuthorId());
+            if (author != null) {
+                resp.setAuthorName(author.getDisplayName());
+                resp.setAuthorAvatarUrl(author.getAvatarUrl());
+            }
             content.add(resp);
         }
 
@@ -166,6 +194,10 @@ public class AdminPostServiceImpl implements AdminPostService {
         resp.setCommentCount(commentCount);
         resp.setLikedByCurrentUser(false);
         resp.setVisibility(p.getVisibility());
+        userRepository.findById(p.getAuthorId()).ifPresent(author -> {
+            resp.setAuthorName(author.getDisplayName());
+            resp.setAuthorAvatarUrl(author.getAvatarUrl());
+        });
         return resp;
     }
 

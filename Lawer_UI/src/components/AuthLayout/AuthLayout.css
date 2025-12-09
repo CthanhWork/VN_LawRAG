@@ -53,21 +53,14 @@
   gap: 12px;
 }
 
-.auth__logo {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #041224;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  letter-spacing: 0.6px;
+.auth__logo-img {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
 }
 
 .auth__brand-title {
-  font-weight: 800;
-  color: #0f172a;
+  display: none;
 }
 
 .auth__brand-sub {
@@ -78,6 +71,7 @@
 .auth__title {
   font-size: 26px;
   font-weight: 800;
+  font-family: var(--font-heading);
   margin: 6px 0 4px;
   color: #0f172a;
 }

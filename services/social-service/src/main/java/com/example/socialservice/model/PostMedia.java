@@ -22,6 +22,12 @@ public class PostMedia {
     @Column(name = "url", nullable = false, length = 500)
     private String url; // public URL path, e.g. /media/...
 
+    @Column(name = "external_id", length = 255)
+    private String externalId;
+
+    @Column(name = "storage_provider", length = 30, nullable = false)
+    private String storageProvider = "LOCAL";
+
     @Column(name = "mime_type", length = 100)
     private String mimeType;
 
@@ -40,6 +46,10 @@ public class PostMedia {
     public void setMediaType(MediaType mediaType) { this.mediaType = mediaType; }
     public String getUrl() { return url; }
     public void setUrl(String url) { this.url = url; }
+    public String getExternalId() { return externalId; }
+    public void setExternalId(String externalId) { this.externalId = externalId; }
+    public String getStorageProvider() { return storageProvider; }
+    public void setStorageProvider(String storageProvider) { this.storageProvider = storageProvider; }
     public String getMimeType() { return mimeType; }
     public void setMimeType(String mimeType) { this.mimeType = mimeType; }
     public Long getSizeBytes() { return sizeBytes; }
@@ -47,4 +57,3 @@ public class PostMedia {
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }
-

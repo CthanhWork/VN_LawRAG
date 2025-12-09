@@ -72,6 +72,7 @@ public class JwtService {
                 .withExpiresAt(exp)
                 .withClaim("email", user.getEmail())
                 .withClaim("displayName", user.getDisplayName())
+                .withClaim("avatarUrl", user.getAvatarUrl())
                 .withClaim("roles", user.getRoles())
                 .sign(getAlgorithm());
     }

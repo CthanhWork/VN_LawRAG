@@ -1,15 +1,11 @@
-from typing import Any, Dict, List
+﻿from typing import Any, Dict, List
+import re
 
 from .retrieval import _fetch_node
 
 
 def _full_clause_text(ctx: Dict[str, Any]) -> str:
-    """
-    Trả về nguyên văn nội dung của điều/khoản tương ứng với context.
-
-    Ưu tiên gọi law-service để lấy full contentText; nếu lỗi thì fallback
-    về trường content đang có trong context.
-    """
+    """Tra ve noi dung dieu/khoan tu context, uu tien lay tu law-service."""
     node_id = ctx.get("node_id")
     if node_id is not None:
         try:
@@ -25,40 +21,24 @@ def _full_clause_text(ctx: Dict[str, Any]) -> str:
 
 def synthesize_answer2(question: str, effective_at: str, contexts: list):
     """
-    Sinh câu trả lời rút gọn dựa trên context, kèm trích dẫn nguyên văn điều/khoản.
-
-    Áp dụng chung cho mọi loại câu hỏi, không hard-code theo từng kịch bản.
+    Fallback tra loi ngan gon dua tren context (khi LLM khong tra loi).
     """
     if not contexts:
         return (
-            "Tu van phap ly (rut gon):\n"
-            "- Chua co trich dan phu hop de tra loi chinh xac.\n"
-            "- Can bo sung: ten van ban/ma van ban hoac dieu, khoan cu the lien quan."
+            "Tu van phap ly:\n"
+            "- He thong chua tim thay trich dan phu hop de dua ra cau tra loi chinh xac.\n"
+            "- Can bo sung: ten van ban hoac dieu khoan cu the lien quan de truy van lai."
         )
 
-    top_ctx = contexts[:3]
-    bullets: List[str] = []
-    for c in top_ctx:
-        code = c.get("law_code") or "N/A"
-        path = c.get("node_path") or ""
-        full_text = _full_clause_text(c)
-        bullets.append(f"- {full_text} [{code} - {path}]")
-
-    return (
-        "Tu van phap ly (rut gon):\n"
-        "- Tom tat quy dinh lien quan (trich dan nguyen van dieu/khoan): \n"
-        + "\n".join(bullets)
-    )
+    return build_structured_advice(contexts)
 
 
 def _pick_clause(contexts: List[dict], article_no: int, strict: bool = False) -> Dict[str, str]:
     """
-    Chọn một đoạn luật phù hợp (Điều X) từ context để trích dẫn.
-    Ưu tiên node_path chứa "Dieu-{article_no}" hoặc content chứa "Điều {article_no}".
-    Nếu strict=True và không tìm thấy, trả về rỗng thay vì lấy đại.
+    Chon mot doan luat phu hop (Dieu X) tu context de trich dan.
     """
     best = None
-    key = f"điều {article_no}".lower()
+    key = f"dieu {article_no}".lower()
     key2 = f"dieu-{article_no}".lower()
     for ctx in contexts or []:
         path = (ctx.get("node_path") or "").lower()
@@ -83,9 +63,9 @@ def _pick_clause(contexts: List[dict], article_no: int, strict: bool = False) ->
 
 def build_structured_advice(contexts: List[dict]) -> str:
     """
-    Tạo bản tóm tắt tư vấn dựa trên context mà không gắn kịch bản cố định.
-    - Liệt kê các điểm chính từ vài context đầu.
-    - Đính kèm trích dẫn ngay dưới bằng blockquote.
+    Tao ban tom tat tu van dua tren context.
+    - Liet ke cac diem chinh tu vai context dau.
+    - Them trich dan (blockquote) ngay ben duoi.
     """
     parts: List[str] = []
     head_items = []
@@ -98,10 +78,9 @@ def build_structured_advice(contexts: List[dict]) -> str:
         head_items.append(f"- {content} [{code} - {path}]")
 
     if head_items:
-        parts.append("Các điểm chính được rút ra từ ngữ cảnh liên quan:")
+        parts.append("Cac diem chinh duoc rut ra tu ngu canh lien quan:")
         parts.extend(head_items)
 
-    # Trích dẫn chi tiết (2-3 đoạn)
     quotes = []
     for c in (contexts or [])[:3]:
         full = _full_clause_text(c)
@@ -111,7 +90,7 @@ def build_structured_advice(contexts: List[dict]) -> str:
         path = c.get("node_path") or ""
         lines = full.splitlines()
         quoted = "\n".join([f"> {line}".rstrip() if line.strip() else ">" for line in lines])
-        quotes.append(f"Căn cứ ({code} - {path}):\n{quoted}")
+        quotes.append(f"Can cu ({code} - {path}):\n{quoted}")
         if len(quotes) >= 3:
             break
 
@@ -123,16 +102,10 @@ def build_structured_advice(contexts: List[dict]) -> str:
 
 
 def attach_full_citations(answer: str, contexts: List[dict], citations: List[dict], max_items: int = 4) -> str:
-    """
-    Append full law excerpts (from system data) after the LLM answer.
-
-    We don't trust the LLM to supply verbatim statute text, so we pull the
-    node contents ourselves and stitch them under a 'Trich dan day du' section.
-    """
+    """Append full law excerpts (from system data) after the LLM answer."""
     picked: List[dict] = []
     seen = set()
 
-    # Prefer matched citations; fall back to top contexts
     for c in (citations or []):
         for ctx in contexts or []:
             same_node = ctx.get("node_id") is not None and ctx.get("node_id") == c.get("node_id")
@@ -167,17 +140,96 @@ def attach_full_citations(answer: str, contexts: List[dict], citations: List[dic
     return suffix
 
 
+def _accentize_common(text: str) -> str:
+    """Best-effort normalize common accentless boilerplate to Vietnamese with dau."""
+    replacements = {
+        r"tu van phap ly": "tư vấn pháp lý",
+        r"tom tat": "tóm tắt",
+        r"quy dinh": "quy định",
+        r"thieu can cu ro rang": "thiếu căn cứ rõ ràng",
+        r"thieu can cu ro rang tu trich dan de ket luan vi pham": "thiếu căn cứ rõ ràng từ trích dẫn để kết luận vi phạm",
+        r"can cu ro rang": "căn cứ rõ ràng",
+        r"thieu can cu ro rang tu trich dan": "thiếu căn cứ rõ ràng từ trích dẫn",
+        r"de ket luan vi pham": "để kết luận vi phạm",
+        r"trich dan": "trích dẫn",
+        r"tu trich dan": "từ trích dẫn",
+        r"rut gon": "rút gọn",
+        r"nguoi hoi": "người hỏi",
+        r"de xuat": "đề xuất",
+    }
+    out = text
+    for pattern, repl in replacements.items():
+        out = re.sub(pattern, repl, out, flags=re.IGNORECASE)
+    return out
+
+
+def _fallback_paragraph(contexts: List[dict]) -> str:
+    """Compose a short advisory paragraph from top contexts (no citations in text)."""
+    parts: List[str] = []
+    for c in (contexts or [])[:3]:
+        full = _full_clause_text(c)
+        if not full:
+            continue
+        parts.append(full.strip())
+    if not parts:
+        return ""
+    return " ".join(parts)[:800].strip()
+
+
+def normalize_answer_vi(text: str, contexts: List[dict], is_explanation: bool = False) -> str:
+    """
+    Clean technical placeholders, strip citations/placeholders, accentize common phrases,
+    and return a single advisory text block (no citations inside).
+    """
+    txt = (text or '').strip()
+    patterns = [
+        r"(?im)^tu van phap ly\s*\(rut gon\)\s*:?",
+        r"(?im)^t[ou] van phap ly\s*:?",
+        r"(?im)^tom tat quy dinh lien quan.*:?",
+        r"(?im)^trich dan day du dieu/khoan.*:?",
+        r"(?im)^1\.\s*noi dung tu van\s*:?",
+        r"(?im)^2\.\s*can cu phap ly trich dan\s*:?",
+        r"(?im)^- Tom tat quy dinh lien quan.*:?",
+        r"(?im)^Hinh thuc xu phat bo sung.*:?",
+        r"(?im)^cac diem chinh duoc rut ra tu ngu canh lien quan.*:?",
+    ]
+    for pat in patterns:
+        txt = re.sub(pat, '', txt).strip()
+
+    txt = re.sub(r"\[[^\]]+\]", ' ', txt)
+    txt = re.sub(r"(?im)^>.*$", ' ', txt)
+    txt = re.sub(r"(?im)^can cu\s*\([^)]*\)\s*:?,?", ' ', txt)
+    txt = re.sub(r"(?im)^c\w*n cu\s*\([^)]*\)\s*:?,?", ' ', txt)
+    txt = re.sub(r"(?im)^cac diem chinh duoc rut ra tu ngu canh lien quan.*$", ' ', txt)
+    txt = re.sub(r"(?m)^\s*-\s*", '', txt)  # strip leading dashes from pasted bullets
+    txt = re.sub(r"\s{2,}", ' ', txt).strip()
+
+    txt = _accentize_common(txt)
+
+    if not txt or len(txt) < 40:
+        txt = _accentize_common(_fallback_paragraph(contexts) or txt)
+
+    if not txt:
+        return ''
+
+    txt = txt.replace('\n', ' ').strip()
+    if not txt.endswith(('.', '!', '?')):
+        txt += '.'
+    return txt
+
+
 def violation_judgment_heuristic(question: str, contexts: List[dict]) -> dict:
     """
-    Heuristic fallback tổng quát cho /analyze khi không dùng được LLM.
-    Không gắn với case cụ thể; luôn trả UNCERTAIN + trích dẫn context.
+    Heuristic fallback tong quat cho /analyze khi khong dung duoc LLM.
+    Khong gan voi case cu the; luon tra UNCERTAIN + trich dan context.
     """
     return {
         "answer": synthesize_answer2(question, "", contexts),
         "decision": "UNCERTAIN",
         "matched": [],
-        "explanation": "Thieu can cu ro rang tu trich dan de ket luan vi pham.",
+        "explanation": "Thiếu căn cứ rõ ràng từ trích dẫn để kết luận vi phạm.",
+        "analysis": "",
     }
 
 
-__all__ = ["synthesize_answer2", "violation_judgment_heuristic", "attach_full_citations", "build_structured_advice"]
+__all__ = ["synthesize_answer2", "violation_judgment_heuristic", "attach_full_citations", "build_structured_advice", "normalize_answer_vi"]

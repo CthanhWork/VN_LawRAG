@@ -64,6 +64,20 @@ export const listNodes = async (lawId, { effectiveAt, page = 0, size = 20 } = {}
   return response.data;
 };
 
+export const listNodesByParent = async (
+  lawId,
+  { parentId, effectiveAt, page = 0, size = 20 } = {},
+  apiKey,
+) => {
+  const response = await client.request({
+    method: 'get',
+    url: `/api/admin/laws/${lawId}/nodes/by-parent`,
+    params: cleanParams({ parentId, effectiveAt, page, size }),
+    headers: withKey(apiKey),
+  });
+  return response.data;
+};
+
 export const getNode = async (id, apiKey) => {
   const response = await client.request({
     method: 'get',
@@ -119,7 +133,23 @@ export const uploadLaw = async ({ file, meta = {} }, apiKey) => {
   if (file) {
     formData.append('file', file);
   }
-  formData.append('meta', JSON.stringify(meta));
+  formData.append(
+    'meta',
+    JSON.stringify({
+      code: meta.code,
+      title: meta.title,
+      docType: meta.docType,
+      issuingBody: meta.issuingBody,
+      promulgationDate: meta.promulgationDate,
+      effectiveDate: meta.effectiveDate,
+      expireDate: meta.expireDate,
+      relatedLawId: meta.relatedLawId,
+      replaceExisting: Boolean(meta.replaceExisting),
+      triggerReindex: Boolean(meta.triggerReindex),
+      nodeEffectiveStart: meta.nodeEffectiveStart,
+      nodeEffectiveEnd: meta.nodeEffectiveEnd,
+    }),
+  );
   const response = await client.request({
     method: 'post',
     url: '/api/admin/laws/upload',
@@ -135,6 +165,7 @@ const adminLawService = {
   getToc,
   getRelated,
   listNodes,
+  listNodesByParent,
   getNode,
   searchNodes,
   searchNodesFulltext,

@@ -15,12 +15,13 @@ import com.example.socialservice.repository.PostLikeRepository;
 import com.example.socialservice.repository.PostMediaRepository;
 import com.example.socialservice.repository.PostRepository;
 import com.example.socialservice.repository.UserRepository;
+import com.example.socialservice.service.CloudinaryService;
+import com.example.socialservice.service.CloudinaryUploadResult;
 import com.example.socialservice.service.PostService;
 import com.example.socialservice.service.CacheEvictService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +36,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.Objects;
+import java.util.UUID;
 
 @Service
 public class PostServiceImpl implements PostService {
@@ -47,10 +48,12 @@ public class PostServiceImpl implements PostService {
     private final PostLikeRepository postLikeRepository;
     private final PostCommentRepository postCommentRepository;
     private final UserRepository userRepository;
+    private final CloudinaryService cloudinaryService;
 
     private final Path uploadRoot;
     private final String publicPrefix;
     private final CacheEvictService cacheEvictService;
+    private final boolean useCloudinary;
 
     public PostServiceImpl(PostRepository postRepository,
             PostMediaRepository postMediaRepository,
@@ -58,6 +61,8 @@ public class PostServiceImpl implements PostService {
             PostLikeRepository postLikeRepository,
             PostCommentRepository postCommentRepository,
             CacheEvictService cacheEvictService,
+            CloudinaryService cloudinaryService,
+            @Value("${app.media.storage:local}") String storageType,
             @Value("${app.media.upload-dir:uploads}") String uploadDir,
             @Value("${app.media.public-prefix:/media}") String publicPrefix) throws IOException {
         this.postRepository = postRepository;
@@ -65,11 +70,19 @@ public class PostServiceImpl implements PostService {
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
         this.postCommentRepository = postCommentRepository;
+        this.cloudinaryService = cloudinaryService;
         this.uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();
         this.publicPrefix = publicPrefix.endsWith("/") ? publicPrefix.substring(0, publicPrefix.length() - 1)
                 : publicPrefix;
         this.cacheEvictService = cacheEvictService;
-        Files.createDirectories(this.uploadRoot);
+        boolean cloudRequested = "cloudinary".equalsIgnoreCase(storageType);
+        this.useCloudinary = cloudRequested && cloudinaryService.isEnabled();
+        if (!this.useCloudinary) {
+            if (cloudRequested && !cloudinaryService.isEnabled()) {
+                log.warn("Cloudinary storage selected but Cloudinary is not configured. Falling back to local storage.");
+            }
+            Files.createDirectories(this.uploadRoot);
+        }
     }
 
     @Override
@@ -98,15 +111,35 @@ public class PostServiceImpl implements PostService {
                 if (mediaType == null) {
                     throw new CustomException(StatusCode.VALIDATION_ERROR, "Unsupported file type");
                 }
-
-                String ext = getFileExtension(contentType, file.getOriginalFilename());
-                String filename = UUID.randomUUID().toString().replaceAll("-", "")
-                        + (StringUtils.hasText(ext) ? "." + ext : "");
-                LocalDate today = LocalDate.now();
-                Path destDir = uploadRoot.resolve(Paths.get(String.valueOf(today.getYear()),
-                        String.format(Locale.ROOT, "%02d", today.getMonthValue()),
-                        String.format(Locale.ROOT, "%02d", today.getDayOfMonth()), String.valueOf(post.getId())));
                 try {
+                    if (useCloudinary) {
+                        if (!cloudinaryService.isEnabled()) {
+                            throw new CustomException(StatusCode.INTERNAL_SERVER_ERROR, "Cloudinary is not configured");
+                        }
+                        CloudinaryUploadResult uploadResult = cloudinaryService.upload(file, "posts/" + post.getId());
+                        PostMedia pm = new PostMedia();
+                        pm.setPost(post);
+                        pm.setMediaType(mediaType);
+                        pm.setUrl(uploadResult.url());
+                        pm.setMimeType(uploadResult.mimeType());
+                        pm.setSizeBytes(uploadResult.bytes());
+                        pm.setExternalId(uploadResult.publicId());
+                        pm.setStorageProvider("CLOUDINARY");
+                        postMediaRepository.save(pm);
+
+                        mediaResponses.add(new PostMediaResponse(pm.getId(), pm.getMediaType(), pm.getUrl(),
+                                pm.getMimeType(), pm.getSizeBytes()));
+                        continue;
+                    }
+
+                    String ext = getFileExtension(contentType, file.getOriginalFilename());
+                    String filename = UUID.randomUUID().toString().replaceAll("-", "")
+                            + (StringUtils.hasText(ext) ? "." + ext : "");
+                    LocalDate today = LocalDate.now();
+                    Path destDir = uploadRoot.resolve(Paths.get(String.valueOf(today.getYear()),
+                            String.format(Locale.ROOT, "%02d", today.getMonthValue()),
+                            String.format(Locale.ROOT, "%02d", today.getDayOfMonth()), String.valueOf(post.getId())));
+
                     Files.createDirectories(destDir);
                     Path dest = destDir.resolve(filename);
                     file.transferTo(dest.toFile());
@@ -119,13 +152,16 @@ public class PostServiceImpl implements PostService {
                     pm.setUrl(publicUrl);
                     pm.setMimeType(contentType);
                     pm.setSizeBytes(file.getSize());
+                    pm.setStorageProvider("LOCAL");
                     postMediaRepository.save(pm);
 
                     mediaResponses.add(new PostMediaResponse(pm.getId(), pm.getMediaType(), pm.getUrl(),
                             pm.getMimeType(), pm.getSizeBytes()));
-                } catch (IOException e) {
+                } catch (CustomException e) {
+                    throw e;
+                } catch (Exception e) {
                     log.error("Failed to store file", e);
-                    throw new CustomException(StatusCode.INTERNAL_SERVER_ERROR, e);
+                    throw new CustomException(StatusCode.INTERNAL_SERVER_ERROR, "Failed to upload media");
                 }
             }
         }
@@ -144,6 +180,8 @@ public class PostServiceImpl implements PostService {
         PostResponse response = new PostResponse(post.getId(), post.getAuthorId(), post.getContent(), post.getCreatedAt(),
                 post.getUpdatedAt(), mediaResponses);
         response.setVisibility(post.getVisibility());
+        response.setAuthorName(author.getDisplayName());
+        response.setAuthorAvatarUrl(author.getAvatarUrl());
         return response;
     }
 
@@ -197,8 +235,13 @@ public class PostServiceImpl implements PostService {
         var saved = postCommentRepository.save(c);
         cacheEvictService.evictMyPostsForUser(post.getAuthorId());
         cacheEvictService.evictUserPostsForTarget(post.getAuthorId());
-        return new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(),
+        var resp = new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(),
                 saved.getCreatedAt());
+        userRepository.findById(userId).ifPresent(author -> {
+            resp.setAuthorName(author.getDisplayName());
+            resp.setAuthorAvatarUrl(author.getAvatarUrl());
+        });
+        return resp;
     }
 
     @Override
@@ -216,8 +259,13 @@ public class PostServiceImpl implements PostService {
         var saved = postCommentRepository.save(c);
         cacheEvictService.evictMyPostsForUser(c.getPost().getAuthorId());
         cacheEvictService.evictUserPostsForTarget(c.getPost().getAuthorId());
-        return new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(),
+        var resp = new com.example.socialservice.dto.CommentResponse(saved.getId(), postId, userId, saved.getContent(),
                 saved.getCreatedAt());
+        userRepository.findById(userId).ifPresent(author -> {
+            resp.setAuthorName(author.getDisplayName());
+            resp.setAuthorAvatarUrl(author.getAvatarUrl());
+        });
+        return resp;
     }
 
     @Override
@@ -243,9 +291,23 @@ public class PostServiceImpl implements PostService {
         if (p == null)
             throw new CustomException(StatusCode.NOT_FOUND);
         var pg = postCommentRepository.findByPost_IdOrderByCreatedAtAsc(postId, pageable);
-        var items = pg.getContent().stream()
-                .map(c -> new com.example.socialservice.dto.CommentResponse(c.getId(), postId, c.getAuthorId(),
-                        c.getContent(), c.getCreatedAt()))
+        var comments = pg.getContent();
+        var authorIds = comments.stream().map(com.example.socialservice.model.PostComment::getAuthorId)
+                .filter(Objects::nonNull).distinct().toList();
+        var userMap = authorIds.isEmpty() ? java.util.Map.<Long, User>of()
+                : userRepository.findAllById(authorIds).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
+        var items = comments.stream()
+                .map(c -> {
+                    var resp = new com.example.socialservice.dto.CommentResponse(c.getId(), postId, c.getAuthorId(),
+                            c.getContent(), c.getCreatedAt());
+                    var author = userMap.get(c.getAuthorId());
+                    if (author != null) {
+                        resp.setAuthorName(author.getDisplayName());
+                        resp.setAuthorAvatarUrl(author.getAvatarUrl());
+                    }
+                    return resp;
+                })
                 .toList();
         return new PageResponse<>(items, pg.getNumber(), pg.getSize(), pg.getTotalElements(), pg.getTotalPages(),
                 pg.hasNext(), pg.hasPrevious());
@@ -278,6 +340,10 @@ public class PostServiceImpl implements PostService {
             Long currentUserId, boolean includePrivate) {
         var posts = pageObj.getContent();
         List<Long> ids = posts.stream().map(Post::getId).toList();
+        var authorIds = posts.stream().map(Post::getAuthorId).filter(Objects::nonNull).distinct().toList();
+        var userMap = authorIds.isEmpty() ? java.util.Map.<Long, User>of()
+                : userRepository.findAllById(authorIds).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
 
         // Media batch
         var mediaList = ids.isEmpty() ? List.<PostMedia>of() : postMediaRepository.findByPost_IdIn(ids);
@@ -321,6 +387,11 @@ public class PostServiceImpl implements PostService {
             resp.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
             resp.setLikedByCurrentUser(likedSet.contains(p.getId()));
             resp.setVisibility(p.getVisibility());
+            var author = userMap.get(p.getAuthorId());
+            if (author != null) {
+                resp.setAuthorName(author.getDisplayName());
+                resp.setAuthorAvatarUrl(author.getAvatarUrl());
+            }
             content.add(resp);
         }
 
@@ -355,6 +426,10 @@ public class PostServiceImpl implements PostService {
         PostResponse response = new PostResponse(saved.getId(), saved.getAuthorId(), saved.getContent(), saved.getCreatedAt(),
                 saved.getUpdatedAt(), List.of());
         response.setVisibility(saved.getVisibility());
+        userRepository.findById(userId).ifPresent(author -> {
+            response.setAuthorName(author.getDisplayName());
+            response.setAuthorAvatarUrl(author.getAvatarUrl());
+        });
         return response;
     }
 

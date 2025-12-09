@@ -1,6 +1,6 @@
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { updateProfile, changePassword } from '../../services/socialService';
+import { updateProfile, changePassword, uploadAvatar, deleteAvatar } from '../../services/socialService';
 import { UserContext } from '../../contexts/UserContext';
 import './Account.css';
 
@@ -17,6 +17,12 @@ const AccountSettings = () => {
     currentPassword: '',
     newPassword: '',
   });
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatarUrl || '');
+  const [avatarFile, setAvatarFile] = useState(null);
+
+  useEffect(() => {
+    setAvatarPreview(user?.avatarUrl || '');
+  }, [user?.avatarUrl]);
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -28,6 +34,68 @@ const AccountSettings = () => {
       setSuccess('Đã tải lại thông tin.');
     } catch (err) {
       setError('Không thể tải thông tin người dùng.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAvatarSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setError('');
+    setSuccess('');
+  };
+
+  const submitAvatar = async (event) => {
+    event?.preventDefault?.();
+    if (!avatarFile) return;
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await uploadAvatar(avatarFile);
+      const updated = res?.data || res || {};
+      const nextAvatar = updated.avatarUrl || avatarPreview;
+      setUser((prev) => ({
+        ...prev,
+        displayName: updated.displayName || prev?.displayName,
+        email: updated.email || prev?.email,
+        avatarUrl: nextAvatar || prev?.avatarUrl,
+        roles: updated.roles || prev?.roles,
+      }));
+      setAvatarPreview(nextAvatar);
+      setAvatarFile(null);
+      setSuccess('Cap nhat avatar thanh cong.');
+    } catch (err) {
+      const serverMsg = err?.response?.data?.message;
+      setError(serverMsg || 'Khong the cap nhat avatar.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await deleteAvatar();
+      const updated = res?.data || res || {};
+      setAvatarPreview('');
+      setAvatarFile(null);
+      setUser((prev) => ({
+        ...prev,
+        avatarUrl: '',
+        displayName: updated.displayName || prev?.displayName,
+        email: updated.email || prev?.email,
+        roles: updated.roles || prev?.roles,
+      }));
+      setSuccess('Da xoa avatar.');
+    } catch (err) {
+      const serverMsg = err?.response?.data?.message;
+      setError(serverMsg || 'Khong the xoa avatar.');
     } finally {
       setLoading(false);
     }
@@ -131,6 +199,39 @@ const AccountSettings = () => {
           </div>
         </div>
 
+        <div className="account__card account__card--stretch account__card--avatar">
+          <div className="account__label">Avatar</div>
+          <div className="account__avatar-row">
+            <div className={`account__avatar-preview ${avatarPreview ? 'is-image' : ''}`}>
+              {avatarPreview ? <img src={avatarPreview} alt="Avatar" /> : (user?.displayName || 'U')[0]?.toUpperCase()}
+            </div>
+            <div className="account__avatar-actions">
+              <label className="account__file-button">
+                <input type="file" accept="image/*" onChange={handleAvatarSelect} />
+                Chon anh
+              </label>
+              <div className="account__avatar-buttons">
+                <button
+                  className="account__button"
+                  type="button"
+                  onClick={submitAvatar}
+                  disabled={loading || !avatarFile}
+                >
+                  {loading ? 'Dang tai...' : 'Cap nhat avatar'}
+                </button>
+                <button
+                  className="account__button account__button--ghost"
+                  type="button"
+                  onClick={handleRemoveAvatar}
+                  disabled={loading || !(avatarPreview || user?.avatarUrl)}
+                >
+                  Xoa avatar
+                </button>
+              </div>
+              <p className="account__muted">Anh vuong &lt; 5MB (jpg/png/webp) se ro net hon.</p>
+            </div>
+          </div>
+        </div>
         <div className="account__card account__card--stretch">
           <form className="account__form" onSubmit={submitProfile}>
             <div className="account__label">Cập nhật hồ sơ</div>

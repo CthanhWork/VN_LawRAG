@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Rubik:wght@400;500;700&family=Space+Grotesk:wght@500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Montserrat:wght@500;600;700&family=Rubik:wght@400;500;700&family=Space+Grotesk:wght@500;600&display=swap');
 
 :root {
   --bg: #e7eddf;
@@ -16,8 +16,8 @@
   --danger: #d36161;
   --shadow-card: 0 10px 24px rgba(31, 42, 35, 0.08);
   --shadow-soft: 0 10px 24px rgba(31, 42, 35, 0.1);
-  --font-heading: 'Space Grotesk', 'Be Vietnam Pro', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-body: 'Be Vietnam Pro', 'Inter', 'Rubik', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Montserrat', 'Space Grotesk', 'Be Vietnam Pro', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Be Vietnam Pro', 'Rubik', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -39,7 +39,7 @@ a {
 }
 
 .shell-container {
-  width: min(1200px, 94%);
+  width: min(1280px, 94%);
   margin: 0 auto;
 }
 
@@ -59,6 +59,14 @@ a {
   max-width: none;
   padding: 32px 24px 56px;
   margin: 0 auto;
+}
+
+.app-content--admin {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  margin: 0 auto;
+  background: var(--bg);
 }
 
 .page-card {

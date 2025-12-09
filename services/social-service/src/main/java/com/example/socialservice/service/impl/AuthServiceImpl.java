@@ -65,11 +65,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponse login(LoginRequest request) throws CustomException {
         User u = userService.login(request.getEmail(), request.getPassword());
-        String token = jwtService.issue(u.getId().toString(), java.util.Map.of(
-                "email", u.getEmail(),
-                "displayName", u.getDisplayName(),
-                "roles", u.getRoles()
-        ));
+        java.util.Map<String, Object> claims = new java.util.HashMap<>();
+        claims.put("email", u.getEmail());
+        claims.put("displayName", u.getDisplayName());
+        if (u.getAvatarUrl() != null) claims.put("avatarUrl", u.getAvatarUrl());
+        claims.put("roles", u.getRoles());
+        String token = jwtService.issue(u.getId().toString(), claims);
         String refreshToken = jwtService.generateRefreshToken(u);
         return userMapper.toLoginResponse(u, token, refreshToken);
     }

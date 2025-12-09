@@ -6,7 +6,7 @@ import './Register.css';
 
 const Register = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '', displayName: '' });
+  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', displayName: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -18,11 +18,20 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setMessage('');
     setError('');
+    if (form.password !== form.confirmPassword) {
+      setError('Mật khẩu và xác nhận mật khẩu không trùng khớp.');
+      return;
+    }
+    setLoading(true);
     try {
-      await register(form);
+      const payload = {
+        email: form.email,
+        password: form.password,
+        displayName: form.displayName,
+      };
+      await register(payload);
       navigate('/verify-otp', { state: { email: form.email, from: 'register' } });
     } catch (err) {
       const fallback = 'Đăng ký thất bại. Kiểm tra lại thông tin.';
@@ -68,6 +77,19 @@ const Register = () => {
             placeholder="Tối thiểu 6 ký tự"
             minLength={6}
             value={form.password}
+            onChange={handleChange}
+            required
+          />
+        </label>
+        <label className="auth__field">
+          <span>Xác nhận mật khẩu</span>
+          <input
+            className="auth__input"
+            type="password"
+            name="confirmPassword"
+            placeholder="Nhập lại mật khẩu"
+            minLength={6}
+            value={form.confirmPassword}
             onChange={handleChange}
             required
           />

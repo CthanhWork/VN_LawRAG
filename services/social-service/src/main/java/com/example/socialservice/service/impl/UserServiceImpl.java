@@ -114,4 +114,17 @@ public class UserServiceImpl implements UserService {
         u.setDisplayName(trimmed);
         return userRepository.save(u);
     }
+
+    @Override
+    @Transactional
+    public User updateAvatar(Long userId, String avatarUrl, String avatarPublicId) throws CustomException {
+        User u = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(StatusCode.USER_NOT_FOUND));
+        if (!"ACTIVE".equalsIgnoreCase(u.getStatus())) {
+            throw new CustomException(StatusCode.USER_NOT_ACTIVE);
+        }
+        u.setAvatarUrl(avatarUrl);
+        u.setAvatarPublicId(avatarPublicId);
+        return userRepository.save(u);
+    }
 }

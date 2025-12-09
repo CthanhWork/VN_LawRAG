@@ -1,6 +1,6 @@
 .header {
   background: var(--surface-strong);
-  height: 72px;
+  height: 64px;
   display: flex;
   align-items: center;
   position: sticky;
@@ -16,13 +16,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .header__left {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .header__logo {
@@ -32,21 +32,15 @@
   color: var(--text-primary);
 }
 
-.header__logo-mark {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #041224;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  box-shadow: var(--shadow-card);
+.header__logo-img {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  border-radius: 12px;
 }
 
 .header__logo-text {
-  margin-left: 10px;
+  margin-left: 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -102,31 +96,39 @@
 .header__account {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .header__userbox {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   position: relative;
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 14px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
 }
 
 .header__avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #041224;
   display: grid;
   place-items: center;
   font-weight: 800;
   box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.header__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
 }
 
 .header__user-info {
