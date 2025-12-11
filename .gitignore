@@ -14,13 +14,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Project docs (ignore docs except weekly reports we need to track)
+# Project docs (keep docs out of the repo)
 docs/
-!docs/
-docs/**
-!docs/BAO_CAO_TUAN_08.md
-!docs/BAO_CAO_TUAN_08.docx
-
 
 # env files
 .env
