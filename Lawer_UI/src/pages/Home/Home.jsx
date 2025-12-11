@@ -9,6 +9,7 @@ import PostList from '../../components/Home/PostList';
 import PostModal from '../../components/Home/PostModal';
 import CommentModal from '../../components/Home/CommentModal';
 import ChatWidget from '../../components/Home/ChatWidget';
+import ProgressTimeline from '../../components/Home/ProgressTimeline';
 import '../../components/Home/HomeShared.css';
 
 const Home = () => {
@@ -183,6 +184,7 @@ const Home = () => {
     <>
       <section className="home-feed">
         <div className="home-feed__timeline">
+          <ProgressTimeline />
           <ComposerTrigger
             firstLetter={firstLetter}
             avatarUrl={user?.avatarUrl}
